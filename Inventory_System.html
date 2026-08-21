@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雲端庫存管理系統 (後台)</title>
+    <!-- 引入 PapaParse 解析 CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- 引入 Chart.js 繪製圖表 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root { --primary-color: #2c3e50; --secondary-color: #3498db; --background-color: #f8f9fa; --border-color: #dee2e6; --edit-color: #f39c12; --cancel-color: #95a5a6; --import-color: #27ae60; --dashboard-bg: #ffffff; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); margin: 0; padding: 20px; color: #333; }
+        
+        /* 💡 登入畫面樣式 */
+        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #2c3e50, #3498db); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 100%; max-width: 350px; }
+        .login-box h2 { color: var(--primary-color); margin-top: 0; margin-bottom: 25px; }
+        .login-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 1.1rem; outline: none; transition: 0.3s; box-sizing: border-box; text-align: center; letter-spacing: 2px; }
+        .login-input:focus { border-color: var(--secondary-color); }
+        .login-btn { width: 100%; padding: 12px; background-color: var(--primary-color); color: white; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .login-btn:hover { background-color: #1a252f; }
+        .error-msg { color: #e74c3c; margin-top: 15px; font-size: 0.9rem; display: none; font-weight: bold; }
+
+        /* 系統主要容器 (預設隱藏，登入後才顯示) */
+        #mainContainer { display: none; max-width: 1300px; margin: 0 auto; position: relative; }
+        
+        .header { text-align: center; margin-bottom: 30px; position: relative; }
+        h1 { color: var(--primary-color); margin-bottom: 10px; }
+        
+        /* 💡 前往型錄按鈕 */
+        .front-btn { position: absolute; top: 0; right: 0; background-color: #27ae60; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.95rem; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px; }
+        .front-btn:hover { background-color: #219653; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+        @media (max-width: 768px) { .front-btn { position: relative; display: inline-flex; justify-content: center; margin-bottom: 15px; } }
+
+        .card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; transition: all 0.3s ease;}
+        .card.edit-mode { border: 2px solid var(--edit-color); box-shadow: 0 0 15px rgba(243, 156, 18, 0.2); }
+        
+        .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px; }
+        .stat-box { background: linear-gradient(135deg, var(--secondary-color), #2980b9); color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 10px rgba(52,152,219,0.3); }
+        .stat-box.green { background: linear-gradient(135deg, #27ae60, #2ecc71); box-shadow: 0 4px 10px rgba(39,174,96,0.3); }
+        .stat-box.orange { background: linear-gradient(135deg, #e67e22, #f39c12); box-shadow: 0 4px 10px rgba(230,126,34,0.3); }
+        .stat-title { font-size: 1rem; font-weight: 600; margin-bottom: 10px; opacity: 0.9; }
+        .stat-value { font-size: 2rem; font-weight: bold; margin: 0; }
+        .charts-container { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .chart-box { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); position: relative; height: 300px;}
+        @media (max-width: 900px) { .dashboard-grid, .charts-container { grid-template-columns: 1fr; } .chart-box { height: 250px; } }
+
+        .header-actions { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px;}
+        .card-title { margin: 0; color: var(--primary-color); font-size: 1.2rem; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; color: #555; }
+        .form-group input { padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 1rem; transition: border-color 0.3s; }
+        .form-group input:focus { outline: none; border-color: var(--secondary-color); }
+        .form-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+        
+        .btn { padding: 8px 16px; background-color: var(--secondary-color); color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; font-weight: 600; transition: 0.2s;}
+        .btn:hover { filter: brightness(0.9); }
+        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 0.9rem; }
+        .btn-edit { background-color: var(--edit-color); padding: 6px 12px; font-size: 0.9rem; }
+        .btn-cancel { background-color: var(--cancel-color); display: none; }
+        .btn-import { background-color: var(--import-color); }
+        
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        th { background-color: #f1f3f5; color: var(--primary-color); font-weight: 600; }
+        tr:hover { background-color: #f8f9fa; }
+        .item-photo { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
+        .empty-state { text-align: center; padding: 30px; color: #777; font-style: italic; }
+        .action-buttons { display: flex; gap: 5px; }
+    </style>
+</head>
+<body>
+
+<!-- 💡 密碼登入畫面 -->
+<div id="loginScreen">
+    <div class="login-box">
+        <h2>🔒 後台管理系統</h2>
+        <p style="color:#7f8c8d; margin-bottom:20px; font-size:0.9rem;">請輸入管理員密碼以進入系統</p>
+        <input type="password" id="passwordInput" class="login-input" placeholder="輸入密碼" onkeypress="handleEnter(event)">
+        <button class="login-btn" onclick="checkPassword()">登入</button>
+        <div id="errorMsg" class="error-msg">密碼錯誤，請重新輸入！</div>
+        
+        <!-- 給不知道密碼的人返回前台的按鈕 -->
+        <a href="Inventory_Gallery.html" style="display:block; margin-top:20px; color:var(--secondary-color); text-decoration:none; font-size:0.9rem;">👈 返回前台型錄</a>
+    </div>
+</div>
+
+<!-- 系統主要內容 (登入後顯示) -->
+<div id="mainContainer" class="container">
+    <div class="header">
+        <!-- 💡 返回前台按鈕 -->
+        <a href="Inventory_Gallery.html" class="front-btn">📱 前往型錄展示</a>
+        <h1>☁️ 雲端庫存管理系統 (後台)</h1>
+    </div>
+
+    <!-- 📊 數據儀表板 -->
+    <div class="card" id="dashboardCard" style="display: none;">
+        <h2 class="card-title" style="margin-bottom: 20px;">📊 庫存數據分析</h2>
+        <div class="dashboard-grid">
+            <div class="stat-box green">
+                <div class="stat-title">總庫存價值 (NT$)</div>
+                <div class="stat-value" id="statTotalValue">$0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-title">總產品品項 (SKU)</div>
+                <div class="stat-value" id="statTotalSKU">0</div>
+            </div>
+            <div class="stat-box orange">
+                <div class="stat-title">總庫存件數</div>
+                <div class="stat-value" id="statTotalQty">0</div>
+            </div>
+        </div>
+        <div class="charts-container">
+            <div class="chart-box"><canvas id="vendorChart"></canvas></div>
+            <div class="chart-box"><canvas id="valueChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- 新增商品表單 -->
+    <div class="card" id="formCard">
+        <h2 class="card-title" id="formTitle" style="margin-bottom: 20px;">新增進貨/庫存</h2>
+        <form id="inventoryForm">
+            <div class="form-grid">
+                <div class="form-group"><label for="photo">上傳照片</label><input type="file" id="photo" accept="image/*"></div>
+                <div class="form-group"><label for="orderId">訂購編號</label><input type="text" id="orderId" required></div>
+                <div class="form-group"><label for="productId">產品編號 (SKU)</label><input type="text" id="productId" required></div>
+                <div class="form-group"><label for="productName">品名</label><input type="text" id="productName" required></div>
+                <div class="form-group"><label for="spec">規格</label><input type="text" id="spec"></div>
+                <div class="form-group"><label for="vendor">廠商</label><input type="text" id="vendor"></div>
+                <div class="form-group"><label for="purpose">用途</label><input type="text" id="purpose"></div>
+                <div class="form-group"><label for="location">存放位置</label><input type="text" id="location"></div>
+                <div class="form-group"><label for="price">單價 (NT$)</label><input type="number" id="price" min="0" step="0.1" value="0" required></div>
+                <div class="form-group"><label for="quantity">數量</label><input type="number" id="quantity" min="0" value="1" required></div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-cancel" id="cancelEditBtn" onclick="cancelEdit()">取消編輯</button>
+                <button type="submit" class="btn" id="submitBtn">新增至庫存</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 庫存列表區塊 -->
+    <div class="card">
+        <div class="header-actions">
+            <h2 class="card-title">目前庫存總覽</h2>
+            <div>
+                <button class="btn btn-cancel" style="display:inline-block; background-color:#7f8c8d;" onclick="downloadTemplate()">📄 下載 CSV 範本</button>
+                <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 一鍵導入 CSV</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>照片</th><th>訂購編號</th><th>產品編號</th><th>品名</th><th>規格</th>
+                        <th>廠商</th><th>用途</th><th>存放位置</th><th>單價</th><th>數量</th><th>總價</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 💡 密碼鎖定邏輯
+    // ==========================================
+    const ADMIN_PASSWORD = "8888"; // ⚠️ 你可以在這裡修改你的密碼
+
+    // 檢查 Session，如果同一個視窗已經登入過，就不用再輸入
+    if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
+        showMainSystem();
+    }
+
+    function checkPassword() {
+        const input = document.getElementById('passwordInput').value;
+        if (input === ADMIN_PASSWORD) {
+            // 登入成功
+            sessionStorage.setItem('isAdminLoggedIn', 'true'); // 記住登入狀態
+            showMainSystem();
+        } else {
+            // 登入失敗
+            document.getElementById('errorMsg').style.display = 'block';
+            document.getElementById('passwordInput').value = '';
+        }
+    }
+
+    function handleEnter(e) {
+        if (e.key === 'Enter') {
+            checkPassword();
+        }
+    }
+
+    function showMainSystem() {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
+        // 進入系統後才開始載入資料
+        loadData();
+    }
+    // ==========================================
+
+
+    // 以下為原有的後台邏輯
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    let inventoryData = [];
+    let editingId = null; 
+    let currentOriginalPhoto = ''; 
+    const form = document.getElementById('inventoryForm');
+    const tableBody = document.getElementById('inventoryTableBody');
+
+    let vendorChartInstance = null;
+    let valueChartInstance = null;
+
+    async function loadData() {
+        tableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">載入中... ☁️</td></tr>';
+        try {
+            const res = await fetch(API_URL);
+            inventoryData = await res.json();
+            renderTable();
+            renderDashboard(); 
+        } catch (error) {
+            tableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:red;">連線失敗</td></tr>';
+        }
+    }
+
+    function renderDashboard() {
+        if (inventoryData.length === 0) {
+            document.getElementById('dashboardCard').style.display = 'none';
+            return;
+        }
+        
+        document.getElementById('dashboardCard').style.display = 'block';
+
+        let totalValue = 0; let totalQty = 0; let vendorCounts = {};
+        
+        inventoryData.forEach(item => {
+            totalValue += (item.totalPrice || 0);
+            totalQty += (item.quantity || 0);
+            const vendor = item.vendor || '未登記廠商';
+            vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
+        });
+
+        document.getElementById('statTotalValue').innerText = '$' + totalValue.toLocaleString();
+        document.getElementById('statTotalSKU').innerText = inventoryData.length.toLocaleString();
+        document.getElementById('statTotalQty').innerText = totalQty.toLocaleString();
+
+        const vendorLabels = Object.keys(vendorCounts);
+        const vendorData = Object.values(vendorCounts);
+        
+        const ctxVendor = document.getElementById('vendorChart').getContext('2d');
+        if (vendorChartInstance) vendorChartInstance.destroy(); 
+        
+        vendorChartInstance = new Chart(ctxVendor, {
+            type: 'doughnut',
+            data: {
+                labels: vendorLabels,
+                datasets: [{ data: vendorData, backgroundColor: ['#3498db', '#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e', '#e67e22'], borderWidth: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '📦 供應商產品比例' } } }
+        });
+
+        const topValuedItems = [...inventoryData].sort((a, b) => (b.totalPrice || 0) - (a.totalPrice || 0)).slice(0, 5);
+        const itemLabels = topValuedItems.map(item => item.productName || item.productId);
+        const itemValues = topValuedItems.map(item => item.totalPrice || 0);
+
+        const ctxValue = document.getElementById('valueChart').getContext('2d');
+        if (valueChartInstance) valueChartInstance.destroy(); 
+        
+        valueChartInstance = new Chart(ctxValue, {
+            type: 'bar',
+            data: { labels: itemLabels, datasets: [{ label: '庫存總價值 (NT$)', data: itemValues, backgroundColor: '#27ae60', borderRadius: 5 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '💰 總庫存價值最高前 5 名產品' } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const photoInput = document.getElementById('photo');
+        const itemData = {
+            id: editingId ? editingId : Date.now(),
+            orderId: document.getElementById('orderId').value,
+            productId: document.getElementById('productId').value,
+            productName: document.getElementById('productName').value,
+            spec: document.getElementById('spec').value,
+            vendor: document.getElementById('vendor').value,
+            purpose: document.getElementById('purpose').value,
+            location: document.getElementById('location').value,
+            price: parseFloat(document.getElementById('price').value) || 0,
+            quantity: parseInt(document.getElementById('quantity').value) || 0,
+        };
+        itemData.totalPrice = itemData.price * itemData.quantity;
+
+        if (photoInput.files && photoInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => { itemData.photo = e.target.result; saveToServer(itemData); };
+            reader.readAsDataURL(photoInput.files[0]);
+        } else {
+            itemData.photo = editingId ? currentOriginalPhoto : '';
+            saveToServer(itemData);
+        }
+    });
+
+    async function saveToServer(itemData) {
+        try {
+            await fetch(API_URL, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(itemData) });
+            cancelEdit(); await loadData();
+        } catch (err) { alert('儲存失敗'); }
+    }
+
+    async function deleteItem(id) {
+        if(confirm('確定刪除？')) {
+            await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
+            if (id === editingId) cancelEdit();
+            await loadData(); 
+        }
+    }
+
+    function startEdit(id) {
+        const item = inventoryData.find(i => i.id === id);
+        if(!item) return;
+        editingId = id; currentOriginalPhoto = item.photo || '';
+        document.getElementById('orderId').value = item.orderId;
+        document.getElementById('productId').value = item.productId;
+        document.getElementById('productName').value = item.productName;
+        document.getElementById('spec').value = item.spec;
+        document.getElementById('vendor').value = item.vendor;
+        document.getElementById('purpose').value = item.purpose;
+        document.getElementById('location').value = item.location;
+        document.getElementById('price').value = item.price;
+        document.getElementById('quantity').value = item.quantity;
+        document.getElementById('photo').value = '';
+        
+        document.getElementById('formCard').classList.add('edit-mode');
+        document.getElementById('formTitle').innerText = `✏️ 編輯資料`;
+        document.getElementById('submitBtn').innerText = '儲存更新';
+        document.getElementById('cancelEditBtn').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+        editingId = null; currentOriginalPhoto = ''; form.reset();
+        document.getElementById('formCard').classList.remove('edit-mode');
+        document.getElementById('formTitle').innerText = '新增進貨/庫存';
+        document.getElementById('submitBtn').innerText = '新增至庫存';
+        document.getElementById('cancelEditBtn').style.display = 'none';
+    }
+
+    function renderTable() {
+        tableBody.innerHTML = '';
+        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="12" class="empty-state">目前為空</td></tr>';
+        
+        inventoryData.forEach(item => {
+            const tr = document.createElement('tr');
+            const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;background:#eee;font-size:12px;">無</div>`;
+            const fm = n => '$' + n.toLocaleString();
+            tr.innerHTML = `<td>${photo}</td><td>${item.orderId||''}</td><td><strong>${item.productId||''}</strong></td>
+                <td>${item.productName||''}</td><td>${item.spec||''}</td><td>${item.vendor||''}</td>
+                <td>${item.purpose||''}</td><td>${item.location||''}</td><td>${fm(item.price)}</td>
+                <td>${item.quantity}</td><td><strong>${fm(item.totalPrice)}</strong></td>
+                <td><div class="action-buttons"><button class="btn btn-edit" onclick="startEdit(${item.id})">編輯</button><button class="btn btn-danger" onclick="deleteItem(${item.id})">刪除</button></div></td>`;
+            tableBody.appendChild(tr);
+        });
+    }
+
+    function downloadTemplate() {
+        const headers = ["訂購編號", "產品編號", "品名", "規格", "廠商", "用途", "存放位置", "單價", "數量"];
+        const csvContent = "\uFEFF" + headers.join(",") + "\n";
+        const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.setAttribute("download", "庫存導入範本.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    document.getElementById('csvFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            complete: async function(results) {
+                if (results.data.length === 0) return alert("檔案內沒有資料！");
+                const importData = results.data.map((row, index) => {
+                    const price = parseFloat(row['單價']) || 0, qty = parseInt(row['數量']) || 0;
+                    return { id: Date.now() + index, photo: '', orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantity: qty, totalPrice: price * qty };
+                });
+                try {
+                    tableBody.innerHTML = `<tr><td colspan="12" style="text-align:center;">正在處理 ${importData.length} 筆資料，請稍候...</td></tr>`;
+                    await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(importData) });
+                    alert(`✅ 成功導入 ${importData.length} 筆庫存資料！`); await loadData();
+                } catch (error) { alert("匯入發生錯誤"); await loadData(); }
+                e.target.value = ''; 
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
