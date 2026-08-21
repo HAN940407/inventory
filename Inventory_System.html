@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雲端庫存管理系統</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --background-color: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+
+        .card-title {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+
+        .form-actions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            padding: 6px 12px;
+            font-size: 0.9rem;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        th {
+            background-color: #f1f3f5;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .item-photo {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: #777;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>☁️ 雲端庫存管理系統</h1>
+
+    <!-- 新增商品表單 -->
+    <div class="card">
+        <h2 class="card-title">新增進貨/庫存</h2>
+        <form id="inventoryForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="photo">上傳照片</label>
+                    <input type="file" id="photo" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label for="orderId">訂購編號</label>
+                    <input type="text" id="orderId" placeholder="例如: PO-20231001" required>
+                </div>
+                <div class="form-group">
+                    <label for="productId">產品編號 (SKU)</label>
+                    <input type="text" id="productId" placeholder="例如: A001" required>
+                </div>
+                <div class="form-group">
+                    <label for="productName">品名</label>
+                    <input type="text" id="productName" placeholder="輸入產品名稱" required>
+                </div>
+                <div class="form-group">
+                    <label for="spec">規格</label>
+                    <input type="text" id="spec" placeholder="尺寸、重量、顏色等">
+                </div>
+                <div class="form-group">
+                    <label for="vendor">廠商</label>
+                    <input type="text" id="vendor" placeholder="供應商名稱">
+                </div>
+                <div class="form-group">
+                    <label for="purpose">用途</label>
+                    <input type="text" id="purpose" placeholder="所屬專案或部門">
+                </div>
+                <div class="form-group">
+                    <label for="price">單價 (NT$)</label>
+                    <input type="number" id="price" min="0" step="0.1" value="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="quantity">數量</label>
+                    <input type="number" id="quantity" min="0" value="1" required>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">新增至庫存</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 庫存列表清單 -->
+    <div class="card">
+        <h2 class="card-title">目前庫存總覽</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>照片</th>
+                        <th>訂購編號</th>
+                        <th>產品編號</th>
+                        <th>品名</th>
+                        <th>規格</th>
+                        <th>廠商</th>
+                        <th>用途</th>
+                        <th>單價</th>
+                        <th>數量</th>
+                        <th>總價</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody">
+                    <!-- 資料會透過 JavaScript 動態產生在這裡 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('inventoryForm');
+    const tableBody = document.getElementById('inventoryTableBody');
+
+    // 這裡是你建立的 Cloudflare API 網址
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    let inventoryData = [];
+
+    // 初始化：從 Cloudflare 載入資料
+    loadData();
+
+    async function loadData() {
+        try {
+            tableBody.innerHTML = '<tr><td colspan="11" style="text-align:center;">資料從 Cloudflare 載入中... ☁️</td></tr>';
+            const response = await fetch(API_URL);
+            
+            if (!response.ok) throw new Error('API 回應錯誤');
+            
+            inventoryData = await response.json();
+            renderTable();
+        } catch (error) {
+            console.error('載入失敗:', error);
+            tableBody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:red;">連線失敗！請確認 Cloudflare Worker 已經正確部署並綁定 D1 資料庫。</td></tr>';
+        }
+    }
+
+    // 處理表單提交
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const photoInput = document.getElementById('photo');
+        
+        // 收集表單資料
+        const itemData = {
+            id: Date.now(),
+            orderId: document.getElementById('orderId').value,
+            productId: document.getElementById('productId').value,
+            productName: document.getElementById('productName').value,
+            spec: document.getElementById('spec').value,
+            vendor: document.getElementById('vendor').value,
+            purpose: document.getElementById('purpose').value,
+            price: parseFloat(document.getElementById('price').value) || 0,
+            quantity: parseInt(document.getElementById('quantity').value) || 0,
+        };
+        itemData.totalPrice = itemData.price * itemData.quantity;
+
+        // 處理圖片轉換
+        if (photoInput.files && photoInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                itemData.photo = event.target.result; // 將圖片轉為 Base64
+                saveToServer(itemData);
+            };
+            reader.readAsDataURL(photoInput.files[0]);
+        } else {
+            itemData.photo = '';
+            saveToServer(itemData);
+        }
+    });
+
+    // 傳送資料到 Cloudflare
+    async function saveToServer(itemData) {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        try {
+            submitBtn.innerText = '雲端同步中...';
+            submitBtn.disabled = true;
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(itemData)
+            });
+            
+            if (!response.ok) throw new Error('儲存失敗');
+            
+            form.reset();
+            await loadData(); // 重新載入最新資料
+        } catch (error) {
+            console.error(error);
+            alert('新增失敗，請檢查網路連線或 API 設定');
+        } finally {
+            submitBtn.innerText = '新增至庫存';
+            submitBtn.disabled = false;
+        }
+    }
+
+    // 刪除項目
+    async function deleteItem(id) {
+        if(confirm('確定要從雲端資料庫徹底刪除這筆資料嗎？')) {
+            try {
+                // 將該列按鈕變成載入中狀態
+                event.target.innerText = '刪除中...';
+                event.target.disabled = true;
+
+                const response = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('刪除失敗');
+                
+                await loadData(); // 重新載入最新資料
+            } catch (error) {
+                console.error(error);
+                alert('刪除失敗');
+                await loadData(); // 恢復原始畫面
+            }
+        }
+    }
+
+    // 渲染表格
+    function renderTable() {
+        tableBody.innerHTML = '';
+        if (inventoryData.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="11" class="empty-state">目前資料庫是空的。請在上方新增你的第一筆庫存！</td></tr>';
+            return;
+        }
+        
+        inventoryData.forEach(item => {
+            const row = document.createElement('tr');
+            const photoHtml = item.photo 
+                ? `<img src="${item.photo}" alt="照片" class="item-photo">` 
+                : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;background:#eee;color:#999;font-size:12px;">無圖片</div>`;
+            const formatMoney = (num) => '$' + num.toLocaleString();
+
+            row.innerHTML = `
+                <td>${photoHtml}</td>
+                <td>${item.orderId}</td>
+                <td><strong>${item.productId}</strong></td>
+                <td>${item.productName}</td>
+                <td>${item.spec}</td>
+                <td>${item.vendor}</td>
+                <td>${item.purpose}</td>
+                <td>${formatMoney(item.price)}</td>
+                <td>${item.quantity}</td>
+                <td><strong>${formatMoney(item.totalPrice)}</strong></td>
+                <td><button class="btn btn-danger" onclick="deleteItem(${item.id})">刪除</button></td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+</script>
+
+</body>
+</html>
