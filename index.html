@@ -10,29 +10,34 @@
             --secondary-color: #3498db;
             --background-color: #f8f9fa;
             --border-color: #dee2e6;
+            --edit-color: #f39c12;
+            --cancel-color: #95a5a6;
         }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--background-color);
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); margin: 0; padding: 20px; color: #333; }
         .container { max-width: 1300px; margin: 0 auto; }
         h1 { text-align: center; color: var(--primary-color); margin-bottom: 30px; }
-        .card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; transition: all 0.3s ease;}
+        /* 編輯模式時的邊框特效 */
+        .card.edit-mode { border: 2px solid var(--edit-color); box-shadow: 0 0 15px rgba(243, 156, 18, 0.2); }
         .card-title { margin-top: 0; margin-bottom: 20px; color: var(--primary-color); font-size: 1.2rem; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; color: #555; }
         .form-group input, .form-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 1rem; transition: border-color 0.3s; }
         .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--secondary-color); }
-        .form-actions { margin-top: 20px; display: flex; justify-content: flex-end; }
+        .form-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+        
+        /* 按鈕樣式設定 */
         .btn { padding: 10px 20px; background-color: var(--secondary-color); color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; font-weight: 600; }
         .btn:hover { background-color: #2980b9; }
         .btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
         .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 0.9rem; }
         .btn-danger:hover { background-color: #c0392b; }
+        .btn-edit { background-color: var(--edit-color); padding: 6px 12px; font-size: 0.9rem; }
+        .btn-edit:hover { background-color: #d68910; }
+        .btn-cancel { background-color: var(--cancel-color); display: none; }
+        .btn-cancel:hover { background-color: #7f8c8d; }
+        
         .table-responsive { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
@@ -40,6 +45,7 @@
         tr:hover { background-color: #f8f9fa; }
         .item-photo { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
         .empty-state { text-align: center; padding: 30px; color: #777; font-style: italic; }
+        .action-buttons { display: flex; gap: 5px; }
     </style>
 </head>
 <body>
@@ -47,12 +53,12 @@
 <div class="container">
     <h1>☁️ 雲端庫存管理系統</h1>
 
-    <div class="card">
-        <h2 class="card-title">新增進貨/庫存</h2>
+    <div class="card" id="formCard">
+        <h2 class="card-title" id="formTitle">新增進貨/庫存</h2>
         <form id="inventoryForm">
             <div class="form-grid">
                 <div class="form-group">
-                    <label for="photo">上傳照片</label>
+                    <label for="photo">上傳新照片 (編輯時若不改請留空)</label>
                     <input type="file" id="photo" accept="image/*">
                 </div>
                 <div class="form-group">
@@ -79,7 +85,6 @@
                     <label for="purpose">用途</label>
                     <input type="text" id="purpose" placeholder="所屬專案或部門">
                 </div>
-                <!-- 💡 這裡新增了位置欄位 -->
                 <div class="form-group">
                     <label for="location">存放位置</label>
                     <input type="text" id="location" placeholder="例如: 倉庫A、第3排貨架">
@@ -94,7 +99,8 @@
                 </div>
             </div>
             <div class="form-actions">
-                <button type="submit" class="btn">新增至庫存</button>
+                <button type="button" class="btn btn-cancel" id="cancelEditBtn" onclick="cancelEdit()">取消編輯</button>
+                <button type="submit" class="btn" id="submitBtn">新增至庫存</button>
             </div>
         </form>
     </div>
@@ -112,7 +118,6 @@
                         <th>規格</th>
                         <th>廠商</th>
                         <th>用途</th>
-                        <!-- 💡 表格標題也新增位置 -->
                         <th>存放位置</th>
                         <th>單價</th>
                         <th>數量</th>
@@ -121,7 +126,7 @@
                     </tr>
                 </thead>
                 <tbody id="inventoryTableBody">
-                    <!-- 資料會透過 JavaScript 動態產生在這裡 -->
+                    <!-- 資料動態產生處 -->
                 </tbody>
             </table>
         </div>
@@ -131,8 +136,16 @@
 <script>
     const form = document.getElementById('inventoryForm');
     const tableBody = document.getElementById('inventoryTableBody');
+    const formCard = document.getElementById('formCard');
+    const formTitle = document.getElementById('formTitle');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    
     let inventoryData = [];
+    let editingId = null; // 💡 追蹤目前正在編輯哪一筆資料
+    let currentOriginalPhoto = ''; // 💡 儲存編輯前的原始照片，如果沒上傳新照片就沿用
 
     loadData();
 
@@ -149,26 +162,73 @@
         }
     }
 
+    // 💡 點擊「編輯」按鈕觸發的函式
+    function startEdit(id) {
+        // 從資料中找出被點擊的該筆資料
+        const item = inventoryData.find(i => i.id === id);
+        if(!item) return;
+
+        editingId = id;
+        currentOriginalPhoto = item.photo || ''; // 保留原照片記錄
+
+        // 將資料填入上方的表單
+        document.getElementById('orderId').value = item.orderId || '';
+        document.getElementById('productId').value = item.productId || '';
+        document.getElementById('productName').value = item.productName || '';
+        document.getElementById('spec').value = item.spec || '';
+        document.getElementById('vendor').value = item.vendor || '';
+        document.getElementById('purpose').value = item.purpose || '';
+        document.getElementById('location').value = item.location || '';
+        document.getElementById('price').value = item.price || 0;
+        document.getElementById('quantity').value = item.quantity || 0;
+        document.getElementById('photo').value = ''; // 清空檔案選擇器
+
+        // 改變表單外觀與按鈕
+        formCard.classList.add('edit-mode');
+        formTitle.innerText = `✏️ 正在編輯資料 (產品編號: ${item.productId})`;
+        submitBtn.innerText = '儲存更新';
+        submitBtn.style.backgroundColor = 'var(--edit-color)';
+        cancelEditBtn.style.display = 'block'; // 顯示取消按鈕
+
+        // 畫面捲動到最上方方便編輯
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 💡 取消編輯
+    function cancelEdit() {
+        editingId = null;
+        currentOriginalPhoto = '';
+        form.reset();
+        
+        formCard.classList.remove('edit-mode');
+        formTitle.innerText = '新增進貨/庫存';
+        submitBtn.innerText = '新增至庫存';
+        submitBtn.style.backgroundColor = 'var(--secondary-color)';
+        cancelEditBtn.style.display = 'none';
+    }
+
+    // 表單送出 (現在會自動判斷是「新增」還是「更新」)
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         const photoInput = document.getElementById('photo');
         
         const itemData = {
-            id: Date.now(),
+            id: editingId ? editingId : Date.now(), // 如果是編輯模式就用原本的ID，否則產生新ID
             orderId: document.getElementById('orderId').value,
             productId: document.getElementById('productId').value,
             productName: document.getElementById('productName').value,
             spec: document.getElementById('spec').value,
             vendor: document.getElementById('vendor').value,
             purpose: document.getElementById('purpose').value,
-            // 💡 取得新欄位輸入的值
             location: document.getElementById('location').value,
             price: parseFloat(document.getElementById('price').value) || 0,
             quantity: parseInt(document.getElementById('quantity').value) || 0,
         };
         itemData.totalPrice = itemData.price * itemData.quantity;
 
+        // 照片處理邏輯
         if (photoInput.files && photoInput.files[0]) {
+            // 如果有上傳新照片
             const reader = new FileReader();
             reader.onload = function(event) {
                 itemData.photo = event.target.result; 
@@ -176,29 +236,34 @@
             };
             reader.readAsDataURL(photoInput.files[0]);
         } else {
-            itemData.photo = '';
+            // 如果沒有上傳新照片：若為編輯模式則沿用舊照片，若為新增則為空字串
+            itemData.photo = editingId ? currentOriginalPhoto : '';
             saveToServer(itemData);
         }
     });
 
+    // 儲存至雲端 (支援 POST 新增 與 PUT 更新)
     async function saveToServer(itemData) {
-        const submitBtn = form.querySelector('button[type="submit"]');
+        const isEditing = editingId !== null;
+        
         try {
             submitBtn.innerText = '雲端同步中...';
             submitBtn.disabled = true;
+
             const response = await fetch(API_URL, {
-                method: 'POST',
+                method: isEditing ? 'PUT' : 'POST', // 💡 依據模式決定呼叫的方法
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(itemData)
             });
+            
             if (!response.ok) throw new Error('儲存失敗');
-            form.reset();
+            
+            cancelEdit(); // 成功後清除表單並退出編輯模式
             await loadData();
         } catch (error) {
             console.error(error);
-            alert('新增失敗，請檢查網路連線或 API 設定');
-        } finally {
-            submitBtn.innerText = '新增至庫存';
+            alert('儲存失敗，請檢查網路連線或 API 設定');
+            submitBtn.innerText = isEditing ? '儲存更新' : '新增至庫存';
             submitBtn.disabled = false;
         }
     }
@@ -210,6 +275,10 @@
                 event.target.disabled = true;
                 const response = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
                 if (!response.ok) throw new Error('刪除失敗');
+                
+                // 如果刪除的剛好是正在編輯的資料，就取消編輯狀態
+                if (id === editingId) cancelEdit();
+                
                 await loadData(); 
             } catch (error) {
                 console.error(error);
@@ -241,12 +310,17 @@
                 <td>${item.spec || ''}</td>
                 <td>${item.vendor || ''}</td>
                 <td>${item.purpose || ''}</td>
-                <!-- 💡 在表格中顯示存放位置，若無資料則為空白 -->
                 <td>${item.location || ''}</td>
                 <td>${formatMoney(item.price)}</td>
                 <td>${item.quantity}</td>
                 <td><strong>${formatMoney(item.totalPrice)}</strong></td>
-                <td><button class="btn btn-danger" onclick="deleteItem(${item.id})">刪除</button></td>
+                <td>
+                    <div class="action-buttons">
+                        <!-- 💡 新增的編輯按鈕 -->
+                        <button class="btn btn-edit" onclick="startEdit(${item.id})">編輯</button>
+                        <button class="btn btn-danger" onclick="deleteItem(${item.id})">刪除</button>
+                    </div>
+                </td>
             `;
             tableBody.appendChild(row);
         });
