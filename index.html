@@ -1,330 +1,341 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雲端庫存管理系統</title>
+    <title>庫存型錄展示</title>
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --background-color: #f8f9fa;
-            --border-color: #dee2e6;
-            --edit-color: #f39c12;
-            --cancel-color: #95a5a6;
+        :root { --primary-color: #2c3e50; --secondary-color: #3498db; --background-color: #f4f6f9; --text-color: #333; --card-bg: #ffffff; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); margin: 0; padding: 20px; color: var(--text-color); }
+        .container { max-width: 1200px; margin: 0 auto; position: relative; }
+        
+        .header { text-align: center; margin-bottom: 20px; position: relative; }
+        .header h1 { color: var(--primary-color); margin-bottom: 10px; font-size: 2.5rem; }
+        .header p { color: #7f8c8d; font-size: 1.1rem; }
+
+        /* 💡 前往後台按鈕樣式 */
+        .admin-btn { position: absolute; top: 0; right: 0; background-color: #34495e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.95rem; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px; }
+        .admin-btn:hover { background-color: #1a252f; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+        
+        /* 手機版時，讓後台按鈕置中顯示在最上方 */
+        @media (max-width: 768px) {
+            .admin-btn { position: relative; display: inline-flex; justify-content: center; margin-bottom: 15px; }
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1300px; margin: 0 auto; }
-        h1 { text-align: center; color: var(--primary-color); margin-bottom: 30px; }
-        .card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; transition: all 0.3s ease;}
-        /* 編輯模式時的邊框特效 */
-        .card.edit-mode { border: 2px solid var(--edit-color); box-shadow: 0 0 15px rgba(243, 156, 18, 0.2); }
-        .card-title { margin-top: 0; margin-bottom: 20px; color: var(--primary-color); font-size: 1.2rem; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
-        .form-group { display: flex; flex-direction: column; }
-        .form-group label { margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; color: #555; }
-        .form-group input, .form-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 1rem; transition: border-color 0.3s; }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--secondary-color); }
-        .form-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* 大分類頁籤按鈕 */
+        .category-tabs { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
+        .cat-btn { background-color: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); padding: 10px 25px; border-radius: 30px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
+        .cat-btn:hover { background-color: #eaf2f8; transform: translateY(-2px); }
+        .cat-btn.active { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(44, 62, 80, 0.4); }
+
+        /* 搜尋與排序控制區塊 */
+        .controls-container { display: flex; justify-content: center; gap: 15px; margin-bottom: 15px; max-width: 800px; margin-left: auto; margin-right: auto; flex-wrap: wrap; }
+        .search-input { flex-grow: 1; min-width: 250px; padding: 12px 20px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1.05rem; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.3s; background: white; }
+        .search-input:focus { box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3); }
+        .sort-select { padding: 12px 15px; border: 2px solid #bdc3c7; border-radius: 8px; font-size: 1rem; color: var(--primary-color); font-weight: 600; outline: none; background: white; cursor: pointer; transition: 0.3s; min-width: 180px;}
+        .sort-select:focus, .sort-select:hover { border-color: var(--secondary-color); }
+
+        /* 廠商快速標籤 */
+        .tags-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 40px; max-width: 900px; margin-left: auto; margin-right: auto; }
+        .vendor-tag { background-color: white; border: 1px solid var(--secondary-color); color: var(--secondary-color); padding: 6px 16px; border-radius: 20px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .vendor-tag:hover { background-color: #ebf5fb; transform: translateY(-2px); }
+        .vendor-tag.active { background-color: var(--secondary-color); color: white; box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3); }
+
+        /* 卡牌與分頁樣式 */
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-bottom: 30px; }
+        .card { background-color: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.08); transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.12); }
+        .card-img-wrapper { width: 100%; height: 220px; background-color: #ecf0f1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+        .card-img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; transition: transform 0.3s ease; }
+        .card-img:hover { transform: scale(1.05); }
+        .no-img-text { color: #95a5a6; font-size: 1.2rem; }
+        .qty-badge { position: absolute; top: 15px; left: 15px; background-color: var(--secondary-color); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); pointer-events: none; }
         
-        /* 按鈕樣式設定 */
-        .btn { padding: 10px 20px; background-color: var(--secondary-color); color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; font-weight: 600; }
-        .btn:hover { background-color: #2980b9; }
-        .btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
-        .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 0.9rem; }
-        .btn-danger:hover { background-color: #c0392b; }
-        .btn-edit { background-color: var(--edit-color); padding: 6px 12px; font-size: 0.9rem; }
-        .btn-edit:hover { background-color: #d68910; }
-        .btn-cancel { background-color: var(--cancel-color); display: none; }
-        .btn-cancel:hover { background-color: #7f8c8d; }
+        .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
+        .card-sku { font-size: 0.85rem; color: #7f8c8d; margin-bottom: 5px; }
+        .card-title { font-size: 1.25rem; font-weight: 700; color: var(--primary-color); margin: 0 0 10px 0; line-height: 1.4; }
+        .card-info-list { font-size: 0.95rem; color: #555; margin-bottom: 15px; flex-grow: 1; display: flex; flex-direction: column; gap: 6px; }
+        .info-tag { display: inline-block; background: #e8f4fd; color: #2980b9; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; margin-right: 5px; }
+        .card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 15px; border-top: 1px solid #eee; }
+        .card-location { font-size: 0.9rem; color: #e67e22; font-weight: 600; }
+        .card-price { font-size: 1.2rem; font-weight: bold; color: #27ae60; }
         
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
-        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-        th { background-color: #f1f3f5; color: var(--primary-color); font-weight: 600; }
-        tr:hover { background-color: #f8f9fa; }
-        .item-photo { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
-        .empty-state { text-align: center; padding: 30px; color: #777; font-style: italic; }
-        .action-buttons { display: flex; gap: 5px; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding-bottom: 40px; }
+        .btn-page { padding: 8px 16px; background-color: white; border: 1px solid var(--primary-color); color: var(--primary-color); border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-page:hover:not(:disabled) { background-color: var(--primary-color); color: white; }
+        .btn-page:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
+        .page-info { font-weight: 600; color: var(--primary-color); }
+        .loading, .empty-state { text-align: center; font-size: 1.2rem; color: #7f8c8d; padding: 50px; grid-column: 1 / -1; }
+
+        .modal { display: none; position: fixed; z-index: 1000; padding-top: 60px; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
+        .modal-content { margin: auto; display: block; max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 8px; animation: zoom 0.3s; }
+        .modal-caption { margin: auto; display: block; width: 80%; text-align: center; color: #fff; padding: 15px 0; font-size: 1.3rem; font-weight: bold; }
+        .close-modal { position: absolute; top: 20px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; transition: 0.3s; cursor: pointer; z-index: 1001; }
+        .close-modal:hover { color: #bbb; }
+        @keyframes zoom { from {transform:scale(0)} to {transform:scale(1)} }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>☁️ 雲端庫存管理系統</h1>
-
-    <div class="card" id="formCard">
-        <h2 class="card-title" id="formTitle">新增進貨/庫存</h2>
-        <form id="inventoryForm">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="photo">上傳新照片 (編輯時若不改請留空)</label>
-                    <input type="file" id="photo" accept="image/*">
-                </div>
-                <div class="form-group">
-                    <label for="orderId">訂購編號</label>
-                    <input type="text" id="orderId" placeholder="例如: PO-20231001" required>
-                </div>
-                <div class="form-group">
-                    <label for="productId">產品編號 (SKU)</label>
-                    <input type="text" id="productId" placeholder="例如: A001" required>
-                </div>
-                <div class="form-group">
-                    <label for="productName">品名</label>
-                    <input type="text" id="productName" placeholder="輸入產品名稱" required>
-                </div>
-                <div class="form-group">
-                    <label for="spec">規格</label>
-                    <input type="text" id="spec" placeholder="尺寸、重量、顏色等">
-                </div>
-                <div class="form-group">
-                    <label for="vendor">廠商</label>
-                    <input type="text" id="vendor" placeholder="供應商名稱">
-                </div>
-                <div class="form-group">
-                    <label for="purpose">用途</label>
-                    <input type="text" id="purpose" placeholder="所屬專案或部門">
-                </div>
-                <div class="form-group">
-                    <label for="location">存放位置</label>
-                    <input type="text" id="location" placeholder="例如: 倉庫A、第3排貨架">
-                </div>
-                <div class="form-group">
-                    <label for="price">單價 (NT$)</label>
-                    <input type="number" id="price" min="0" step="0.1" value="0" required>
-                </div>
-                <div class="form-group">
-                    <label for="quantity">數量</label>
-                    <input type="number" id="quantity" min="0" value="1" required>
-                </div>
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn btn-cancel" id="cancelEditBtn" onclick="cancelEdit()">取消編輯</button>
-                <button type="submit" class="btn" id="submitBtn">新增至庫存</button>
-            </div>
-        </form>
+    <div class="header">
+        <!-- 💡 新增的返回後台按鈕 -->
+        <a href="Inventory_System.html" class="admin-btn">⚙️ 前往後台管理</a>
+        
+        <h1>📦 庫存型錄展示</h1>
+        <p>一目了然的數位庫存清單</p>
     </div>
 
-    <div class="card">
-        <h2 class="card-title">目前庫存總覽</h2>
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>照片</th>
-                        <th>訂購編號</th>
-                        <th>產品編號</th>
-                        <th>品名</th>
-                        <th>規格</th>
-                        <th>廠商</th>
-                        <th>用途</th>
-                        <th>存放位置</th>
-                        <th>單價</th>
-                        <th>數量</th>
-                        <th>總價</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="inventoryTableBody">
-                    <!-- 資料動態產生處 -->
-                </tbody>
-            </table>
-        </div>
+    <!-- 大分類頁籤按鈕 -->
+    <div class="category-tabs">
+        <button class="cat-btn active" onclick="setCategory('P')">☕ 瓷器 (P)</button>
+        <button class="cat-btn" onclick="setCategory('G')">🍷 玻璃 (G)</button>
+        <button class="cat-btn" onclick="setCategory('S')">🍴 銀器 (S)</button>
+        <button class="cat-btn" onclick="setCategory('ALL')">📂 顯示全部</button>
+    </div>
+
+    <div class="controls-container">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋品名、編號、用途、廠商、位置...">
+        
+        <select id="sortSelect" class="sort-select">
+            <option value="sku-asc" selected>🔡 產品編號 (A ➔ Z)</option>
+            <option value="sku-desc">🔡 產品編號 (Z ➔ A)</option>
+            <option value="newest">🆕 最新加入</option>
+            <option value="oldest">⏳ 最早加入</option>
+            <option value="qty-asc">⚠️ 庫存 (少 ➔ 多)</option>
+            <option value="qty-desc">📦 庫存 (多 ➔ 少)</option>
+            <option value="price-desc">💰 單價 (高 ➔ 低)</option>
+            <option value="price-asc">🪙 單價 (低 ➔ 高)</option>
+        </select>
+    </div>
+
+    <div class="tags-container" id="vendorTagsContainer">
+        <!-- 廠商標籤會動態渲染於此 -->
+    </div>
+
+    <div class="grid-container" id="cardGrid">
+        <div class="loading">資料從 Cloudflare 載入中... ☁️</div>
+    </div>
+
+    <div class="pagination" id="paginationControls" style="display: none;">
+        <button class="btn-page" id="prevBtn" onclick="changePage(-1)">上一頁</button>
+        <span class="page-info" id="pageInfo">第 1 頁 / 共 1 頁</span>
+        <button class="btn-page" id="nextBtn" onclick="changePage(1)">下一頁</button>
     </div>
 </div>
 
-<script>
-    const form = document.getElementById('inventoryForm');
-    const tableBody = document.getElementById('inventoryTableBody');
-    const formCard = document.getElementById('formCard');
-    const formTitle = document.getElementById('formTitle');
-    const submitBtn = document.getElementById('submitBtn');
-    const cancelEditBtn = document.getElementById('cancelEditBtn');
-    
-    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
-    
-    let inventoryData = [];
-    let editingId = null; // 💡 追蹤目前正在編輯哪一筆資料
-    let currentOriginalPhoto = ''; // 💡 儲存編輯前的原始照片，如果沒上傳新照片就沿用
+<div id="imageModal" class="modal">
+    <span class="close-modal" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="expandedImg">
+    <div id="modalCaption" class="modal-caption"></div>
+</div>
 
-    loadData();
+<script>
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    let inventoryData = [];
+    let filteredData = []; 
+    
+    let currentCategory = 'P'; 
+    
+    let currentPage = 1;
+    const itemsPerPage = 12;
+
+    const gridContainer = document.getElementById('cardGrid');
+    const paginationControls = document.getElementById('paginationControls');
+    const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+    const vendorTagsContainer = document.getElementById('vendorTagsContainer');
 
     async function loadData() {
         try {
-            tableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">資料從 Cloudflare 載入中... ☁️</td></tr>';
-            const response = await fetch(API_URL);
-            if (!response.ok) throw new Error('API 回應錯誤');
-            inventoryData = await response.json();
-            renderTable();
-        } catch (error) {
-            console.error('載入失敗:', error);
-            tableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:red;">連線失敗！請確認 API 網址是否正確。</td></tr>';
-        }
-    }
-
-    // 💡 點擊「編輯」按鈕觸發的函式
-    function startEdit(id) {
-        // 從資料中找出被點擊的該筆資料
-        const item = inventoryData.find(i => i.id === id);
-        if(!item) return;
-
-        editingId = id;
-        currentOriginalPhoto = item.photo || ''; // 保留原照片記錄
-
-        // 將資料填入上方的表單
-        document.getElementById('orderId').value = item.orderId || '';
-        document.getElementById('productId').value = item.productId || '';
-        document.getElementById('productName').value = item.productName || '';
-        document.getElementById('spec').value = item.spec || '';
-        document.getElementById('vendor').value = item.vendor || '';
-        document.getElementById('purpose').value = item.purpose || '';
-        document.getElementById('location').value = item.location || '';
-        document.getElementById('price').value = item.price || 0;
-        document.getElementById('quantity').value = item.quantity || 0;
-        document.getElementById('photo').value = ''; // 清空檔案選擇器
-
-        // 改變表單外觀與按鈕
-        formCard.classList.add('edit-mode');
-        formTitle.innerText = `✏️ 正在編輯資料 (產品編號: ${item.productId})`;
-        submitBtn.innerText = '儲存更新';
-        submitBtn.style.backgroundColor = 'var(--edit-color)';
-        cancelEditBtn.style.display = 'block'; // 顯示取消按鈕
-
-        // 畫面捲動到最上方方便編輯
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    // 💡 取消編輯
-    function cancelEdit() {
-        editingId = null;
-        currentOriginalPhoto = '';
-        form.reset();
-        
-        formCard.classList.remove('edit-mode');
-        formTitle.innerText = '新增進貨/庫存';
-        submitBtn.innerText = '新增至庫存';
-        submitBtn.style.backgroundColor = 'var(--secondary-color)';
-        cancelEditBtn.style.display = 'none';
-    }
-
-    // 表單送出 (現在會自動判斷是「新增」還是「更新」)
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const photoInput = document.getElementById('photo');
-        
-        const itemData = {
-            id: editingId ? editingId : Date.now(), // 如果是編輯模式就用原本的ID，否則產生新ID
-            orderId: document.getElementById('orderId').value,
-            productId: document.getElementById('productId').value,
-            productName: document.getElementById('productName').value,
-            spec: document.getElementById('spec').value,
-            vendor: document.getElementById('vendor').value,
-            purpose: document.getElementById('purpose').value,
-            location: document.getElementById('location').value,
-            price: parseFloat(document.getElementById('price').value) || 0,
-            quantity: parseInt(document.getElementById('quantity').value) || 0,
-        };
-        itemData.totalPrice = itemData.price * itemData.quantity;
-
-        // 照片處理邏輯
-        if (photoInput.files && photoInput.files[0]) {
-            // 如果有上傳新照片
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                itemData.photo = event.target.result; 
-                saveToServer(itemData);
-            };
-            reader.readAsDataURL(photoInput.files[0]);
-        } else {
-            // 如果沒有上傳新照片：若為編輯模式則沿用舊照片，若為新增則為空字串
-            itemData.photo = editingId ? currentOriginalPhoto : '';
-            saveToServer(itemData);
-        }
-    });
-
-    // 儲存至雲端 (支援 POST 新增 與 PUT 更新)
-    async function saveToServer(itemData) {
-        const isEditing = editingId !== null;
-        
-        try {
-            submitBtn.innerText = '雲端同步中...';
-            submitBtn.disabled = true;
-
-            const response = await fetch(API_URL, {
-                method: isEditing ? 'PUT' : 'POST', // 💡 依據模式決定呼叫的方法
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(itemData)
-            });
+            const res = await fetch(API_URL);
+            if (!res.ok) throw new Error('API 連線失敗');
+            inventoryData = await res.json();
             
-            if (!response.ok) throw new Error('儲存失敗');
-            
-            cancelEdit(); // 成功後清除表單並退出編輯模式
-            await loadData();
+            applyFilterAndSort(); 
         } catch (error) {
-            console.error(error);
-            alert('儲存失敗，請檢查網路連線或 API 設定');
-            submitBtn.innerText = isEditing ? '儲存更新' : '新增至庫存';
-            submitBtn.disabled = false;
+            gridContainer.innerHTML = '<div class="loading" style="color:red;">連線失敗，請檢查網路或 API 設定。</div>';
         }
     }
 
-    async function deleteItem(id) {
-        if(confirm('確定要從雲端資料庫徹底刪除這筆資料嗎？')) {
-            try {
-                event.target.innerText = '刪除中...';
-                event.target.disabled = true;
-                const response = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
-                if (!response.ok) throw new Error('刪除失敗');
-                
-                // 如果刪除的剛好是正在編輯的資料，就取消編輯狀態
-                if (id === editingId) cancelEdit();
-                
-                await loadData(); 
-            } catch (error) {
-                console.error(error);
-                alert('刪除失敗');
-                await loadData(); 
-            }
-        }
+    function setCategory(categoryPrefix) {
+        currentCategory = categoryPrefix;
+        
+        document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.cat-btn[onclick="setCategory('${categoryPrefix}')"]`).classList.add('active');
+        
+        searchInput.value = '';
+        applyFilterAndSort();
     }
 
-    function renderTable() {
-        tableBody.innerHTML = '';
-        if (inventoryData.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="12" class="empty-state">目前資料庫是空的。請在上方新增你的第一筆庫存！</td></tr>';
+    function renderVendorTags(dataToParse) {
+        const vendors = [...new Set(dataToParse.map(item => (item.vendor || '').trim()).filter(v => v !== ''))];
+        
+        if (vendors.length === 0) {
+            vendorTagsContainer.style.display = 'none';
             return;
         }
         
-        inventoryData.forEach(item => {
-            const row = document.createElement('tr');
-            const photoHtml = item.photo 
-                ? `<img src="${item.photo}" alt="照片" class="item-photo">` 
-                : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;background:#eee;color:#999;font-size:12px;">無圖片</div>`;
-            const formatMoney = (num) => '$' + num.toLocaleString();
-
-            row.innerHTML = `
-                <td>${photoHtml}</td>
-                <td>${item.orderId || ''}</td>
-                <td><strong>${item.productId || ''}</strong></td>
-                <td>${item.productName || ''}</td>
-                <td>${item.spec || ''}</td>
-                <td>${item.vendor || ''}</td>
-                <td>${item.purpose || ''}</td>
-                <td>${item.location || ''}</td>
-                <td>${formatMoney(item.price)}</td>
-                <td>${item.quantity}</td>
-                <td><strong>${formatMoney(item.totalPrice)}</strong></td>
-                <td>
-                    <div class="action-buttons">
-                        <!-- 💡 新增的編輯按鈕 -->
-                        <button class="btn btn-edit" onclick="startEdit(${item.id})">編輯</button>
-                        <button class="btn btn-danger" onclick="deleteItem(${item.id})">刪除</button>
-                    </div>
-                </td>
-            `;
-            tableBody.appendChild(row);
+        vendorTagsContainer.style.display = 'flex';
+        vendorTagsContainer.innerHTML = `<button class="vendor-tag" data-vendor="" onclick="filterByVendor('')">全部廠商</button>`;
+        
+        vendors.forEach(vendor => {
+            const btn = document.createElement('button');
+            btn.className = 'vendor-tag';
+            btn.setAttribute('data-vendor', vendor);
+            btn.innerText = vendor;
+            btn.onclick = () => filterByVendor(vendor);
+            vendorTagsContainer.appendChild(btn);
         });
     }
+
+    function filterByVendor(vendorName) {
+        searchInput.value = vendorName;
+        applyFilterAndSort();
+    }
+
+    function applyFilterAndSort() {
+        let categorizedData = inventoryData;
+        if (currentCategory !== 'ALL') {
+            categorizedData = inventoryData.filter(item => {
+                const sku = (item.productId || '').toUpperCase();
+                return sku.startsWith(currentCategory);
+            });
+        }
+
+        renderVendorTags(categorizedData);
+
+        const exactQuery = searchInput.value.trim();
+        const query = exactQuery.toLowerCase();
+        let tempArray = [];
+
+        document.querySelectorAll('.vendor-tag').forEach(tag => {
+            const tagVendor = tag.getAttribute('data-vendor');
+            if (tagVendor === exactQuery) {
+                tag.classList.add('active');
+            } else if (exactQuery === '' && tagVendor === '') {
+                tag.classList.add('active');
+            } else {
+                tag.classList.remove('active');
+            }
+        });
+
+        if (query === '') {
+            tempArray = [...categorizedData];
+        } else {
+            const terms = query.split(/\s+/);
+            tempArray = categorizedData.filter(item => {
+                const searchableText = [
+                    item.productName, item.productId, item.purpose,
+                    item.location, item.vendor, item.spec, item.orderId
+                ].map(v => (v || '').toLowerCase()).join(' ');
+                return terms.every(term => searchableText.includes(term));
+            });
+        }
+
+        const sortMode = sortSelect.value;
+        tempArray.sort((a, b) => {
+            if (sortMode === 'newest') return b.id - a.id; 
+            if (sortMode === 'oldest') return a.id - b.id; 
+            if (sortMode === 'qty-desc') return b.quantity - a.quantity;
+            if (sortMode === 'qty-asc') return a.quantity - b.quantity;
+            if (sortMode === 'price-desc') return b.price - a.price;
+            if (sortMode === 'price-asc') return a.price - b.price;
+            
+            if (sortMode === 'sku-asc') return (a.productId || '').localeCompare(b.productId || '');
+            if (sortMode === 'sku-desc') return (b.productId || '').localeCompare(a.productId || '');
+            return 0;
+        });
+
+        filteredData = tempArray;
+        currentPage = 1; 
+        renderCards();
+    }
+
+    searchInput.addEventListener('input', applyFilterAndSort);
+    sortSelect.addEventListener('change', applyFilterAndSort);
+
+    function renderCards() {
+        if (filteredData.length === 0) {
+            gridContainer.innerHTML = '<div class="empty-state">目前這個分類下找不到產品 😕</div>';
+            paginationControls.style.display = 'none';
+            return;
+        }
+
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+        if (currentPage < 1) currentPage = 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const currentData = filteredData.slice(startIndex, startIndex + itemsPerPage);
+
+        gridContainer.innerHTML = '';
+
+        currentData.forEach(item => {
+            const formatMoney = (num) => '$' + (num || 0).toLocaleString();
+            const photoHtml = item.photo 
+                ? `<img src="${item.photo}" class="card-img" onclick="openModal('${item.photo}', '${item.productName || '未命名產品'}')">`
+                : `<span class="no-img-text">無圖片</span>`;
+
+            const purposeHtml = item.purpose ? `<div><span class="info-tag">用途</span>${item.purpose}</div>` : '';
+            const specHtml = item.spec ? `<div><span class="info-tag" style="background:#eafaf1; color:#27ae60;">規格</span>${item.spec}</div>` : '';
+            const infoListHtml = (purposeHtml + specHtml) || '<span style="color:#999; font-style:italic;">無詳細說明</span>';
+
+            const cardHtml = `
+                <div class="card">
+                    <div class="card-img-wrapper">
+                        <div class="qty-badge">庫存: ${item.quantity}</div>
+                        ${photoHtml}
+                    </div>
+                    <div class="card-body">
+                        <div class="card-sku">${item.productId || '無編號'} | <strong style="color:var(--secondary-color);">${item.vendor || '未知廠商'}</strong></div>
+                        <h3 class="card-title">${item.productName || '未命名產品'}</h3>
+                        <div class="card-info-list">${infoListHtml}</div>
+                        <div class="card-meta">
+                            <div class="card-location">📍 ${item.location || '未指定位置'}</div>
+                            <div class="card-price">${formatMoney(item.price)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            gridContainer.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+        updatePagination(totalPages);
+    }
+
+    function updatePagination(totalPages) {
+        paginationControls.style.display = 'flex';
+        document.getElementById('pageInfo').innerText = `第 ${currentPage} 頁 / 共 ${totalPages} 頁`;
+        document.getElementById('prevBtn').disabled = currentPage === 1;
+        document.getElementById('nextBtn').disabled = currentPage === totalPages;
+    }
+
+    function changePage(direction) {
+        currentPage += direction;
+        renderCards();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    const modal = document.getElementById('imageModal');
+    function openModal(imgSrc, caption) {
+        modal.style.display = "block";
+        document.getElementById('expandedImg').src = imgSrc;
+        document.getElementById('modalCaption').innerText = caption;
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+        modal.style.display = "none";
+        document.body.style.overflow = "auto";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) closeModal();
+    }
+
+    loadData();
 </script>
 
 </body>
