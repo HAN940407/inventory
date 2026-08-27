@@ -125,7 +125,6 @@
                 <div class="form-group"><label for="quantityOnsite" style="color:var(--secondary-color);">現場庫存</label><input type="number" id="quantityOnsite" min="0" value="0" required></div>
                 <div class="form-group"><label for="quantity">倉庫庫存</label><input type="number" id="quantity" min="0" value="0" required></div>
                 
-                <!-- 💡 新增三個外借欄位 -->
                 <div class="form-group"><label for="borrowZhongxiao" style="color:var(--borrow-color);">忠孝外借</label><input type="number" id="borrowZhongxiao" min="0" value="0" required></div>
                 <div class="form-group"><label for="borrowApon" style="color:var(--borrow-color);">艾朋外借</label><input type="number" id="borrowApon" min="0" value="0" required></div>
                 <div class="form-group"><label for="borrowOther" style="color:var(--borrow-color);">其他外借</label><input type="number" id="borrowOther" min="0" value="0" required></div>
@@ -144,7 +143,7 @@
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
                 <button class="btn" id="saveOrderBtn">🔄 正在儲存排序...</button>
                 <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 批量刪除</button>
-                <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出 CSV</button>
+                <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出 CSV (含照片)</button>
                 <button class="btn btn-cancel" style="display:inline-block; background-color:#7f8c8d;" onclick="downloadTemplate()">📄 下載 CSV 範本</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
                 <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 一鍵導入 CSV</button>
@@ -157,7 +156,6 @@
                         <th style="width: 40px; text-align: center;">排序</th>
                         <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                         <th>照片</th><th>產品編號</th><th>品名</th><th>廠商</th>
-                        <!-- 💡 表頭加入外借群組 -->
                         <th>單價</th><th>現場</th><th>倉庫</th><th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他外借</th><th style="color:#e67e22;">總數</th><th>總價</th><th>操作</th>
                     </tr>
                 </thead>
@@ -203,17 +201,17 @@
     function getAuthHeaders() { return { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }; }
 
     async function loadData() {
-        tableBody.innerHTML = '<tr><td colspan="16" style="text-align:center;">載入中... ☁️</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="15" style="text-align:center;">載入中... ☁️</td></tr>';
         try {
             const res = await fetch(API_URL); inventoryData = await res.json();
             renderTable(); renderDashboard(); 
             document.getElementById('selectAll').checked = false; updateBatchDeleteBtn();
-        } catch (error) { tableBody.innerHTML = '<tr><td colspan="16" style="text-align:center;color:red;">連線失敗</td></tr>'; }
+        } catch (error) { tableBody.innerHTML = '<tr><td colspan="15" style="text-align:center;color:red;">連線失敗</td></tr>'; }
     }
 
     function renderTable() {
         tableBody.innerHTML = '';
-        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="16" class="empty-state">目前為空</td></tr>';
+        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="15" class="empty-state">目前為空</td></tr>';
         
         inventoryData.forEach(item => {
             const tr = document.createElement('tr');
@@ -221,7 +219,6 @@
             const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;background:#eee;font-size:12px;">無圖片</div>`;
             const fm = n => '$' + n.toLocaleString();
             
-            // 💡 總量加總所有的庫存與外借
             const qTotal = (item.quantityOnsite || 0) + (item.quantity || 0) + (item.borrowZhongxiao || 0) + (item.borrowApon || 0) + (item.borrowOther || 0);
             
             tr.innerHTML = `
@@ -242,7 +239,6 @@
                 <td class="qty-hl"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantityOnsite">${item.quantityOnsite || 0}</div></td>
                 <td class="qty-hl"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantity">${item.quantity || 0}</div></td>
                 
-                <!-- 💡 三個外借的 Inline Edit 欄位 -->
                 <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowZhongxiao">${item.borrowZhongxiao || 0}</div></td>
                 <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowApon">${item.borrowApon || 0}</div></td>
                 <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowOther">${item.borrowOther || 0}</div></td>
@@ -257,13 +253,15 @@
         initInlineEdit(); 
     }
 
+    // 💡 更新：匯出 CSV，加入「照片資料」
     function exportCSV() {
         if (inventoryData.length === 0) { alert("沒有資料可以匯出！"); return; }
         const csvData = inventoryData.map(item => ({
             "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "",
             "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "",
             "單價": item.price || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0,
-            "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0
+            "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0,
+            "照片資料": item.photo || "" // 寫入 Base64 照片代碼
         }));
         const csvContent = "\uFEFF" + Papa.unparse(csvData, { header: true });
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -295,7 +293,6 @@
         
         let item = { ...inventoryData[itemIndex] };
 
-        // 💡 將新的欄位也加入數學計算清單中
         if (['price', 'quantityOnsite', 'quantity', 'borrowZhongxiao', 'borrowApon', 'borrowOther'].includes(field)) {
             let num = parseFloat(newValue) || 0;
             item[field] = num;
@@ -433,12 +430,14 @@
     function updateBatchDeleteBtn() { const c=document.querySelectorAll('.row-checkbox:checked').length; const btn=document.getElementById('batchDeleteBtn'); btn.style.display=c>0?'inline-block':'none'; if(c>0)btn.innerText=`🗑️ 批量刪除 (${c})`; }
     async function batchDelete() { const cb=document.querySelectorAll('.row-checkbox:checked'); const ids=Array.from(cb).map(c=>c.value); if(ids.length===0)return; if(confirm(`確定刪除 ${ids.length} 筆資料嗎？`)){ document.getElementById('batchDeleteBtn').innerText='刪除中...'; await Promise.all(ids.map(id=>fetch(`${API_URL}?id=${id}`,{method:'DELETE',headers:getAuthHeaders()}))); await loadData(); } }
     
+    // 💡 下載範本時，也加上照片資料的欄位
     function downloadTemplate() {
-        const headers = ["訂購編號", "產品編號", "品名", "規格", "廠商", "用途", "存放位置", "單價", "現場庫存", "倉庫庫存", "忠孝外借", "艾朋外借", "其他外借"];
+        const headers = ["訂購編號", "產品編號", "品名", "規格", "廠商", "用途", "存放位置", "單價", "現場庫存", "倉庫庫存", "忠孝外借", "艾朋外借", "其他外借", "照片資料"];
         const csvContent = "\uFEFF" + headers.join(",") + "\n";
         const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.setAttribute("download", "庫存導入範本.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
+    // 💡 匯入 CSV 時，解析出照片資料儲存到資料庫
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
         Papa.parse(file, {
@@ -452,10 +451,10 @@
                     const qBZ = parseInt(row['忠孝外借']) || 0; const qBA = parseInt(row['艾朋外借']) || 0; const qBO = parseInt(row['其他外借']) || 0;
                     const tQty = qOnsite + qWarehouse + qBZ + qBA + qBO;
                     
-                    return { id: Date.now() + index, photo: '', orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: price * tQty };
+                    return { id: Date.now() + index, photo: row['照片資料'] || '', orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: price * tQty };
                 });
                 try {
-                    tableBody.innerHTML = `<tr><td colspan="16" style="text-align:center;">正在處理 ${importData.length} 筆資料...</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="15" style="text-align:center;">正在處理 ${importData.length} 筆資料...</td></tr>`;
                     await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(importData) });
                     alert(`✅ 成功導入 ${importData.length} 筆資料！`); await loadData();
                 } catch (error) { alert("匯入發生錯誤。"); await loadData(); } e.target.value = ''; 
