@@ -1,5 +1,242 @@
-// 3. 執行資料排序
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>器皿型錄展示</title>
+    <style>
+        :root { --primary-color: #2c3e50; --secondary-color: #3498db; --background-color: #f4f6f9; --text-color: #333; --card-bg: #ffffff; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); margin: 0; padding: 20px; color: var(--text-color); }
+        .container { max-width: 1200px; margin: 0 auto; position: relative; }
+
+        .header { text-align: center; margin-bottom: 20px; position: relative; }
+        .header h1 { color: var(--primary-color); margin-bottom: 10px; font-size: 2.5rem; }
+        .header p { color: #7f8c8d; font-size: 1.1rem; }
+
+        /* 前往後台按鈕樣式 */
+        .admin-btn { position: absolute; top: 0; right: 0; background-color: #34495e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.95rem; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px; }
+        .admin-btn:hover { background-color: #1a252f; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+
+        @media (max-width: 768px) {
+            .admin-btn { position: relative; display: inline-flex; justify-content: center; margin-bottom: 15px; }
+        }
+
+        /* 大分類頁籤按鈕 */
+        .category-tabs { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
+        .cat-btn { background-color: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); padding: 10px 25px; border-radius: 30px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
+        .cat-btn:hover { background-color: #eaf2f8; transform: translateY(-2px); }
+        .cat-btn.active { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(44, 62, 80, 0.4); }
+
+        /* 搜尋與排序控制區塊 */
+        .controls-container { display: flex; justify-content: center; gap: 15px; margin-bottom: 15px; max-width: 800px; margin-left: auto; margin-right: auto; flex-wrap: wrap; }
+        .search-input { flex-grow: 1; min-width: 250px; padding: 12px 20px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1.05rem; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.3s; background: white; }
+        .search-input:focus { box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3); }
+        .sort-select { padding: 12px 15px; border: 2px solid #bdc3c7; border-radius: 8px; font-size: 1rem; color: var(--primary-color); font-weight: 600; outline: none; background: white; cursor: pointer; transition: 0.3s; min-width: 180px;}
+        .sort-select:focus, .sort-select:hover { border-color: var(--secondary-color); }
+
+        /* 廠商快速標籤 */
+        .tags-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 40px; max-width: 900px; margin-left: auto; margin-right: auto; }
+        .vendor-tag { background-color: white; border: 1px solid var(--secondary-color); color: var(--secondary-color); padding: 6px 16px; border-radius: 20px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .vendor-tag:hover { background-color: #ebf5fb; transform: translateY(-2px); }
+        .vendor-tag.active { background-color: var(--secondary-color); color: white; box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3); }
+
+        /* 卡牌與分頁樣式 */
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-bottom: 30px; }
+        .card { background-color: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.08); transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.12); }
+        .card-img-wrapper { width: 100%; height: 220px; background-color: #ecf0f1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+        .card-img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; transition: transform 0.3s ease; }
+        .card-img:hover { transform: scale(1.05); }
+        .no-img-text { color: #95a5a6; font-size: 1.2rem; }
+        .qty-badge { position: absolute; top: 15px; left: 15px; background-color: var(--secondary-color); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); pointer-events: none; }
+
+        .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
+        .card-sku { font-size: 0.85rem; color: #7f8c8d; margin-bottom: 5px; }
+        .card-title { font-size: 1.25rem; font-weight: 700; color: var(--primary-color); margin: 0 0 10px 0; line-height: 1.4; }
+        .card-info-list { font-size: 0.95rem; color: #555; margin-bottom: 15px; flex-grow: 1; display: flex; flex-direction: column; gap: 6px; }
+        .info-tag { display: inline-block; background: #e8f4fd; color: #2980b9; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; margin-right: 5px; }
+        .card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 15px; border-top: 1px solid #eee; }
+        .card-location { font-size: 0.9rem; color: #e67e22; font-weight: 600; }
+        .card-price { font-size: 1.2rem; font-weight: bold; color: #27ae60; }
+
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding-bottom: 40px; }
+        .btn-page { padding: 8px 16px; background-color: white; border: 1px solid var(--primary-color); color: var(--primary-color); border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-page:hover:not(:disabled) { background-color: var(--primary-color); color: white; }
+        .btn-page:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
+        .page-info { font-weight: 600; color: var(--primary-color); }
+        .loading, .empty-state { text-align: center; font-size: 1.2rem; color: #7f8c8d; padding: 50px; grid-column: 1 / -1; }
+
+        .modal { display: none; position: fixed; z-index: 1000; padding-top: 60px; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
+        .modal-content { margin: auto; display: block; max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 8px; animation: zoom 0.3s; }
+        .modal-caption { margin: auto; display: block; width: 80%; text-align: center; color: #fff; padding: 15px 0; font-size: 1.3rem; font-weight: bold; }
+        .close-modal { position: absolute; top: 20px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; transition: 0.3s; cursor: pointer; z-index: 1001; }
+        .close-modal:hover { color: #bbb; }
+        @keyframes zoom { from {transform:scale(0)} to {transform:scale(1)} }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <a href="Inventory_System.html" class="admin-btn">⚙️ 前往後台管理</a>
+        <h1>📦 器皿型錄展示</h1>
+        <p>一目了然的數位庫存清單</p>
+    </div>
+
+    <!-- 大分類頁籤按鈕 -->
+    <div class="category-tabs">
+        <button class="cat-btn" onclick="setCategory('P')">☕ 瓷器</button>
+        <button class="cat-btn" onclick="setCategory('G')">🍷 玻璃</button>
+        <button class="cat-btn" onclick="setCategory('S')">🍴 銀器</button>
+        <button class="cat-btn active" onclick="setCategory('ALL')">📂 顯示全部</button>
+    </div>
+
+    <div class="controls-container">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋品名、編號、用途、廠商、位置...">
+
+        <select id="sortSelect" class="sort-select">
+            <option value="sku-asc" selected>🔡 產品編號 (A ➔ Z)</option>
+            <option value="sku-desc">🔡 產品編號 (Z ➔ A)</option>
+            <option value="newest">🆕 最新加入</option>
+            <option value="oldest">⏳ 最早加入</option>
+            <option value="qty-asc">⚠️ 庫存 (少 ➔ 多)</option>
+            <option value="qty-desc">📦 庫存 (多 ➔ 少)</option>
+            <option value="price-desc">💰 單價 (高 ➔ 低)</option>
+            <option value="price-asc">🪙 單價 (低 ➔ 高)</option>
+        </select>
+    </div>
+
+    <div class="tags-container" id="vendorTagsContainer">
+        <!-- 廠商標籤會動態渲染於此 -->
+    </div>
+
+    <div class="grid-container" id="cardGrid">
+        <div class="loading">資料載入中... ☁️</div>
+    </div>
+
+    <div class="pagination" id="paginationControls" style="display: none;">
+        <button class="btn-page" id="prevBtn" onclick="changePage(-1)">上一頁</button>
+        <span class="page-info" id="pageInfo">第 1 頁 / 共 1 頁</span>
+        <button class="btn-page" id="nextBtn" onclick="changePage(1)">下一頁</button>
+    </div>
+</div>
+
+<div id="imageModal" class="modal">
+    <span class="close-modal" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="expandedImg">
+    <div id="modalCaption" class="modal-caption"></div>
+</div>
+
+<script>
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    let inventoryData = [];
+    let filteredData = []; 
+
+    // 預設分類可以依照需求修改為 'P', 'G', 'S' 或 'ALL'
+    let currentCategory = 'ALL'; 
+
+    let currentPage = 1;
+    const itemsPerPage = 12;
+
+    const gridContainer = document.getElementById('cardGrid');
+    const paginationControls = document.getElementById('paginationControls');
+    const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+    const vendorTagsContainer = document.getElementById('vendorTagsContainer');
+
+    async function loadData() {
+        try {
+            const res = await fetch(API_URL);
+            if (!res.ok) throw new Error('API 連線失敗');
+            inventoryData = await res.json();
+
+            // 確保網頁一開啟就載入對應的分類按鈕樣式
+            document.querySelector(`.cat-btn[onclick="setCategory('${currentCategory}')"]`).classList.add('active');
+            
+            applyFilterAndSort(); 
+        } catch (error) {
+            gridContainer.innerHTML = '<div class="loading" style="color:red;">連線失敗，請檢查網路或 API 設定。</div>';
+        }
+    }
+
+    function setCategory(categoryPrefix) {
+        currentCategory = categoryPrefix;
+
+        document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.cat-btn[onclick="setCategory('${categoryPrefix}')"]`).classList.add('active');
+
+        searchInput.value = '';
+        applyFilterAndSort();
+    }
+
+    function renderVendorTags(dataToParse) {
+        const vendors = [...new Set(dataToParse.map(item => (item.vendor || '').trim()).filter(v => v !== ''))];
+
+        if (vendors.length === 0) {
+            vendorTagsContainer.style.display = 'none';
+            return;
+        }
+
+        vendorTagsContainer.style.display = 'flex';
+        vendorTagsContainer.innerHTML = `<button class="vendor-tag" data-vendor="" onclick="filterByVendor('')">全部廠商</button>`;
+
+        vendors.forEach(vendor => {
+            const btn = document.createElement('button');
+            btn.className = 'vendor-tag';
+            btn.setAttribute('data-vendor', vendor);
+            btn.innerText = vendor;
+            btn.onclick = () => filterByVendor(vendor);
+            vendorTagsContainer.appendChild(btn);
+        });
+    }
+
+    function filterByVendor(vendorName) {
+        searchInput.value = vendorName;
+        applyFilterAndSort();
+    }
+
+    function applyFilterAndSort() {
+        let categorizedData = inventoryData;
+        if (currentCategory !== 'ALL') {
+            categorizedData = inventoryData.filter(item => {
+                const sku = (item.productId || '').toUpperCase();
+                return sku.startsWith(currentCategory);
+            });
+        }
+
+        renderVendorTags(categorizedData);
+
+        const exactQuery = searchInput.value.trim();
+        const query = exactQuery.toLowerCase();
+        let tempArray = [];
+
+        document.querySelectorAll('.vendor-tag').forEach(tag => {
+            const tagVendor = tag.getAttribute('data-vendor');
+            if (tagVendor === exactQuery) {
+                tag.classList.add('active');
+            } else if (exactQuery === '' && tagVendor === '') {
+                tag.classList.add('active');
+            } else {
+                tag.classList.remove('active');
+            }
+        });
+
+        if (query === '') {
+            tempArray = [...categorizedData];
+        } else {
+            const terms = query.split(/\s+/);
+            tempArray = categorizedData.filter(item => {
+                const searchableText = [
+                    item.productName, item.productId, item.purpose,
+                    item.location, item.vendor, item.spec, item.orderId
+                ].map(v => (v || '').toLowerCase()).join(' ');
+                return terms.every(term => searchableText.includes(term));
+            });
+        }
+
         const sortMode = sortSelect.value;
+
+        // 定義產品編號排序的優先權： P (瓷器) > G (玻璃) > S (銀器)
         const getSkuPriority = (sku) => {
             sku = (sku || '').toUpperCase();
             if (sku.startsWith('P')) return 1;
@@ -9,7 +246,6 @@
         };
 
         tempArray.sort((a, b) => {
-            // 💡 排序計算時，必須把現場與倉庫相加
             const totalQtyA = (a.quantity || 0) + (a.quantityOnsite || 0);
             const totalQtyB = (b.quantity || 0) + (b.quantityOnsite || 0);
 
@@ -20,15 +256,19 @@
             if (sortMode === 'price-desc') return b.price - a.price;
             if (sortMode === 'price-asc') return a.price - b.price;
 
+            // 優先權邏輯的 SKU 排序
             if (sortMode === 'sku-asc') {
                 const priorityA = getSkuPriority(a.productId);
                 const priorityB = getSkuPriority(b.productId);
+                
                 if (priorityA !== priorityB) return priorityA - priorityB;
                 return (a.productId || '').localeCompare(b.productId || '');
             }
+
             if (sortMode === 'sku-desc') {
                 const priorityA = getSkuPriority(a.productId);
                 const priorityB = getSkuPriority(b.productId);
+                
                 if (priorityA !== priorityB) return priorityB - priorityA;
                 return (b.productId || '').localeCompare(a.productId || '');
             }
@@ -69,7 +309,6 @@
             const specHtml = item.spec ? `<div><span class="info-tag" style="background:#eafaf1; color:#27ae60;">規格</span>${item.spec}</div>` : '';
             const infoListHtml = (purposeHtml + specHtml) || '<span style="color:#999; font-style:italic;">無詳細說明</span>';
 
-            // 💡 取得三種庫存數字並呈現於標籤
             const qOnsite = item.quantityOnsite || 0;
             const qWarehouse = item.quantity || 0;
             const qTotal = qOnsite + qWarehouse;
@@ -77,7 +316,6 @@
             const cardHtml = `
                 <div class="card">
                     <div class="card-img-wrapper">
-                        <!-- 💡 在這裏顯示總數，括號內顯示拆分細節 -->
                         <div class="qty-badge">總存: ${qTotal} (現 ${qOnsite} | 倉 ${qWarehouse})</div>
                         ${photoHtml}
                     </div>
@@ -130,3 +368,6 @@
 
     loadData();
 </script>
+
+</body>
+</html>
