@@ -4,16 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雲端庫存管理系統 (後台)</title>
-    <!-- 引入 PapaParse 解析 CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- 引入 Chart.js 繪製圖表 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         :root { --primary-color: #2c3e50; --secondary-color: #3498db; --background-color: #f8f9fa; --border-color: #dee2e6; --edit-color: #f39c12; --cancel-color: #95a5a6; --import-color: #27ae60; --dashboard-bg: #ffffff; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); margin: 0; padding: 20px; color: #333; }
         
-        /* 💡 登入畫面樣式 */
         #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #2c3e50, #3498db); display: flex; align-items: center; justify-content: center; z-index: 9999; }
         .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 100%; max-width: 350px; }
         .login-box h2 { color: var(--primary-color); margin-top: 0; margin-bottom: 25px; }
@@ -23,16 +20,18 @@
         .login-btn:hover { background-color: #1a252f; }
         .error-msg { color: #e74c3c; margin-top: 15px; font-size: 0.9rem; display: none; font-weight: bold; }
 
-        /* 系統主要容器 (預設隱藏，登入後才顯示) */
         #mainContainer { display: none; max-width: 1300px; margin: 0 auto; position: relative; }
         
         .header { text-align: center; margin-bottom: 30px; position: relative; }
         h1 { color: var(--primary-color); margin-bottom: 10px; }
         
-        /* 💡 前往型錄按鈕 */
-        .front-btn { position: absolute; top: 0; right: 0; background-color: #27ae60; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.95rem; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px; }
+        /* 導覽按鈕群組 */
+        .btn-group-top { position: absolute; top: 0; right: 0; display: flex; gap: 10px; }
+        .front-btn { background-color: #27ae60; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.95rem; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px; border: none; cursor: pointer; }
         .front-btn:hover { background-color: #219653; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
-        @media (max-width: 768px) { .front-btn { position: relative; display: inline-flex; justify-content: center; margin-bottom: 15px; } }
+        .logout-btn { background-color: #e74c3c; }
+        .logout-btn:hover { background-color: #c0392b; }
+        @media (max-width: 768px) { .btn-group-top { position: relative; display: flex; justify-content: center; margin-bottom: 15px; } }
 
         .card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; transition: all 0.3s ease;}
         .card.edit-mode { border: 2px solid var(--edit-color); box-shadow: 0 0 15px rgba(243, 156, 18, 0.2); }
@@ -47,7 +46,7 @@
         .chart-box { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); position: relative; height: 300px;}
         @media (max-width: 900px) { .dashboard-grid, .charts-container { grid-template-columns: 1fr; } .chart-box { height: 250px; } }
 
-        .header-actions { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px;}
+        .header-actions { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
         .card-title { margin: 0; color: var(--primary-color); font-size: 1.2rem; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
         .form-group { display: flex; flex-direction: column; }
@@ -69,6 +68,10 @@
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
         th { background-color: #f1f3f5; color: var(--primary-color); font-weight: 600; }
         tr:hover { background-color: #f8f9fa; }
+        
+        /* 💡 核取方塊稍微放大，方便點擊 */
+        .row-checkbox, #selectAll { transform: scale(1.3); cursor: pointer; }
+        
         .item-photo { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
         .empty-state { text-align: center; padding: 30px; color: #777; font-style: italic; }
         .action-buttons { display: flex; gap: 5px; }
@@ -76,7 +79,6 @@
 </head>
 <body>
 
-<!-- 💡 密碼登入畫面 -->
 <div id="loginScreen">
     <div class="login-box">
         <h2>🔒 後台管理系統</h2>
@@ -84,17 +86,17 @@
         <input type="password" id="passwordInput" class="login-input" placeholder="輸入密碼" onkeypress="handleEnter(event)">
         <button class="login-btn" onclick="checkPassword()">登入</button>
         <div id="errorMsg" class="error-msg">密碼錯誤，請重新輸入！</div>
-        
-        <!-- 給不知道密碼的人返回前台的按鈕 -->
         <a href="Inventory_Gallery.html" style="display:block; margin-top:20px; color:var(--secondary-color); text-decoration:none; font-size:0.9rem;">👈 返回前台型錄</a>
     </div>
 </div>
 
-<!-- 系統主要內容 (登入後顯示) -->
 <div id="mainContainer" class="container">
     <div class="header">
-        <!-- 💡 返回前台按鈕 -->
-        <a href="index.html" class="front-btn">📱 前往型錄展示</a>
+        <!-- 順手幫你把登出按鈕加進來了 -->
+        <div class="btn-group-top">
+            <a href="Inventory_Gallery.html" class="front-btn">📱 前往型錄展示</a>
+            <button onclick="logout()" class="front-btn logout-btn">🚪 登出</button>
+        </div>
         <h1>☁️ 雲端庫存管理系統 (後台)</h1>
     </div>
 
@@ -148,7 +150,10 @@
     <div class="card">
         <div class="header-actions">
             <h2 class="card-title">目前庫存總覽</h2>
-            <div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <!-- 💡 批量刪除按鈕 (預設隱藏) -->
+                <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 批量刪除</button>
+                
                 <button class="btn btn-cancel" style="display:inline-block; background-color:#7f8c8d;" onclick="downloadTemplate()">📄 下載 CSV 範本</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
                 <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 一鍵導入 CSV</button>
@@ -158,6 +163,8 @@
             <table>
                 <thead>
                     <tr>
+                        <!-- 💡 表頭加入全選 Checkbox -->
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                         <th>照片</th><th>訂購編號</th><th>產品編號</th><th>品名</th><th>規格</th>
                         <th>廠商</th><th>用途</th><th>存放位置</th><th>單價</th><th>數量</th><th>總價</th><th>操作</th>
                     </tr>
@@ -169,12 +176,8 @@
 </div>
 
 <script>
-    // ==========================================
-    // 💡 密碼鎖定邏輯
-    // ==========================================
-    const ADMIN_PASSWORD = "90834171"; // ⚠️ 你可以在這裡修改你的密碼
+    const ADMIN_PASSWORD = "90834171"; 
 
-    // 檢查 Session，如果同一個視窗已經登入過，就不用再輸入
     if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
         showMainSystem();
     }
@@ -182,51 +185,52 @@
     function checkPassword() {
         const input = document.getElementById('passwordInput').value;
         if (input === ADMIN_PASSWORD) {
-            // 登入成功
-            sessionStorage.setItem('isAdminLoggedIn', 'true'); // 記住登入狀態
+            sessionStorage.setItem('isAdminLoggedIn', 'true'); 
             showMainSystem();
         } else {
-            // 登入失敗
             document.getElementById('errorMsg').style.display = 'block';
             document.getElementById('passwordInput').value = '';
         }
     }
 
     function handleEnter(e) {
-        if (e.key === 'Enter') {
-            checkPassword();
-        }
+        if (e.key === 'Enter') checkPassword();
     }
 
     function showMainSystem() {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('mainContainer').style.display = 'block';
-        // 進入系統後才開始載入資料
         loadData();
     }
-    // ==========================================
 
+    // 💡 登出功能
+    function logout() {
+        sessionStorage.removeItem('isAdminLoggedIn');
+        location.reload(); 
+    }
 
-    // 以下為原有的後台邏輯
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
     let inventoryData = [];
     let editingId = null; 
     let currentOriginalPhoto = ''; 
     const form = document.getElementById('inventoryForm');
     const tableBody = document.getElementById('inventoryTableBody');
-
     let vendorChartInstance = null;
     let valueChartInstance = null;
 
     async function loadData() {
-        tableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">載入中... ☁️</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="13" style="text-align:center;">載入中... ☁️</td></tr>';
         try {
             const res = await fetch(API_URL);
             inventoryData = await res.json();
             renderTable();
             renderDashboard(); 
+            
+            // 載入完畢後，重置全選按鈕狀態
+            document.getElementById('selectAll').checked = false;
+            updateBatchDeleteBtn();
         } catch (error) {
-            tableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:red;">連線失敗</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:red;">連線失敗</td></tr>';
         }
     }
 
@@ -322,6 +326,66 @@
         }
     }
 
+    // 💡 批量刪除邏輯
+    function toggleSelectAll() {
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+        updateBatchDeleteBtn();
+    }
+
+    function updateBatchDeleteBtn() {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        const totalCheckboxes = document.querySelectorAll('.row-checkbox').length;
+        const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+        const selectAllCheckbox = document.getElementById('selectAll');
+
+        // 如果有勾選項目，顯示批量刪除按鈕
+        if (checkedCount > 0) {
+            batchDeleteBtn.style.display = 'inline-block';
+            batchDeleteBtn.innerText = `🗑️ 批量刪除 (${checkedCount})`;
+        } else {
+            batchDeleteBtn.style.display = 'none';
+        }
+
+        // 同步「全選」方塊的狀態
+        if (totalCheckboxes > 0) {
+            selectAllCheckbox.checked = (checkedCount === totalCheckboxes);
+        }
+    }
+
+    async function batchDelete() {
+        const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+        const idsToDelete = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (idsToDelete.length === 0) return;
+
+        if (confirm(`⚠️ 確定要刪除這 ${idsToDelete.length} 筆資料嗎？此操作無法復原！`)) {
+            const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+            batchDeleteBtn.innerText = '刪除中...';
+            batchDeleteBtn.disabled = true;
+
+            try {
+                // 使用 Promise.all 同時發送多個刪除請求以加快速度
+                await Promise.all(idsToDelete.map(id => 
+                    fetch(`${API_URL}?id=${id}`, { method: 'DELETE' })
+                ));
+                
+                // 如果刪除的項目中包含正在編輯的項目，取消編輯模式
+                if (idsToDelete.includes(String(editingId))) cancelEdit();
+                
+                alert(`✅ 成功刪除 ${idsToDelete.length} 筆資料！`);
+            } catch (error) {
+                console.error(error);
+                alert('部分刪除發生錯誤，請重新整理頁面後再試。');
+            } finally {
+                batchDeleteBtn.style.display = 'none';
+                batchDeleteBtn.disabled = false;
+                await loadData(); 
+            }
+        }
+    }
+
     function startEdit(id) {
         const item = inventoryData.find(i => i.id === id);
         if(!item) return;
@@ -354,13 +418,19 @@
 
     function renderTable() {
         tableBody.innerHTML = '';
-        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="12" class="empty-state">目前為空</td></tr>';
+        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="13" class="empty-state">目前為空</td></tr>';
         
         inventoryData.forEach(item => {
             const tr = document.createElement('tr');
             const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;background:#eee;font-size:12px;">無</div>`;
             const fm = n => '$' + n.toLocaleString();
-            tr.innerHTML = `<td>${photo}</td><td>${item.orderId||''}</td><td><strong>${item.productId||''}</strong></td>
+            
+            // 💡 在每個資料列的最前方加入 Checkbox，並綁定 onChange 事件
+            tr.innerHTML = `
+                <td style="text-align: center;">
+                    <input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()">
+                </td>
+                <td>${photo}</td><td>${item.orderId||''}</td><td><strong>${item.productId||''}</strong></td>
                 <td>${item.productName||''}</td><td>${item.spec||''}</td><td>${item.vendor||''}</td>
                 <td>${item.purpose||''}</td><td>${item.location||''}</td><td>${fm(item.price)}</td>
                 <td>${item.quantity}</td><td><strong>${fm(item.totalPrice)}</strong></td>
@@ -386,7 +456,7 @@
                     return { id: Date.now() + index, photo: '', orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantity: qty, totalPrice: price * qty };
                 });
                 try {
-                    tableBody.innerHTML = `<tr><td colspan="12" style="text-align:center;">正在處理 ${importData.length} 筆資料，請稍候...</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="13" style="text-align:center;">正在處理 ${importData.length} 筆資料，請稍候...</td></tr>`;
                     await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(importData) });
                     alert(`✅ 成功導入 ${importData.length} 筆庫存資料！`); await loadData();
                 } catch (error) { alert("匯入發生錯誤"); await loadData(); }
