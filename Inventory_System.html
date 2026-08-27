@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雲端庫存管理系統 (後台)</title>
+    <!-- 引入 PapaParse 解析 CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- 引入 Chart.js 繪製圖表 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         :root { --primary-color: #2c3e50; --secondary-color: #3498db; --background-color: #f8f9fa; --border-color: #dee2e6; --edit-color: #f39c12; --cancel-color: #95a5a6; --import-color: #27ae60; --dashboard-bg: #ffffff; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); margin: 0; padding: 20px; color: #333; }
         
+        /* 登入畫面樣式 */
         #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #2c3e50, #3498db); display: flex; align-items: center; justify-content: center; z-index: 9999; }
         .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 100%; max-width: 350px; }
         .login-box h2 { color: var(--primary-color); margin-top: 0; margin-bottom: 25px; }
@@ -20,6 +23,7 @@
         .login-btn:hover { background-color: #1a252f; }
         .error-msg { color: #e74c3c; margin-top: 15px; font-size: 0.9rem; display: none; font-weight: bold; }
 
+        /* 系統主要容器 (預設隱藏，登入後才顯示) */
         #mainContainer { display: none; max-width: 1300px; margin: 0 auto; position: relative; }
         
         .header { text-align: center; margin-bottom: 30px; position: relative; }
@@ -69,7 +73,6 @@
         th { background-color: #f1f3f5; color: var(--primary-color); font-weight: 600; }
         tr:hover { background-color: #f8f9fa; }
         
-        /* 💡 核取方塊稍微放大，方便點擊 */
         .row-checkbox, #selectAll { transform: scale(1.3); cursor: pointer; }
         
         .item-photo { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
@@ -79,6 +82,7 @@
 </head>
 <body>
 
+<!-- 密碼登入畫面 -->
 <div id="loginScreen">
     <div class="login-box">
         <h2>🔒 後台管理系統</h2>
@@ -86,13 +90,14 @@
         <input type="password" id="passwordInput" class="login-input" placeholder="輸入密碼" onkeypress="handleEnter(event)">
         <button class="login-btn" onclick="checkPassword()">登入</button>
         <div id="errorMsg" class="error-msg">密碼錯誤，請重新輸入！</div>
+        
         <a href="Inventory_Gallery.html" style="display:block; margin-top:20px; color:var(--secondary-color); text-decoration:none; font-size:0.9rem;">👈 返回前台型錄</a>
     </div>
 </div>
 
+<!-- 系統主要內容 (登入後顯示) -->
 <div id="mainContainer" class="container">
     <div class="header">
-        <!-- 順手幫你把登出按鈕加進來了 -->
         <div class="btn-group-top">
             <a href="Inventory_Gallery.html" class="front-btn">📱 前往型錄展示</a>
             <button onclick="logout()" class="front-btn logout-btn">🚪 登出</button>
@@ -151,7 +156,6 @@
         <div class="header-actions">
             <h2 class="card-title">目前庫存總覽</h2>
             <div style="display: flex; gap: 10px; align-items: center;">
-                <!-- 💡 批量刪除按鈕 (預設隱藏) -->
                 <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 批量刪除</button>
                 
                 <button class="btn btn-cancel" style="display:inline-block; background-color:#7f8c8d;" onclick="downloadTemplate()">📄 下載 CSV 範本</button>
@@ -163,7 +167,6 @@
             <table>
                 <thead>
                     <tr>
-                        <!-- 💡 表頭加入全選 Checkbox -->
                         <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                         <th>照片</th><th>訂購編號</th><th>產品編號</th><th>品名</th><th>規格</th>
                         <th>廠商</th><th>用途</th><th>存放位置</th><th>單價</th><th>數量</th><th>總價</th><th>操作</th>
@@ -176,20 +179,50 @@
 </div>
 
 <script>
-    const ADMIN_PASSWORD = "90834171"; 
+    // ==========================================
+    // 💡 密碼驗證由 Cloudflare 伺服器處理
+    // ==========================================
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
 
-    if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
+    // 如果暫存有密鑰，直接進入系統
+    if (sessionStorage.getItem('adminToken')) {
         showMainSystem();
     }
 
-    function checkPassword() {
+    async function checkPassword() {
         const input = document.getElementById('passwordInput').value;
-        if (input === ADMIN_PASSWORD) {
-            sessionStorage.setItem('isAdminLoggedIn', 'true'); 
-            showMainSystem();
-        } else {
-            document.getElementById('errorMsg').style.display = 'block';
-            document.getElementById('passwordInput').value = '';
+        const btn = document.querySelector('.login-btn');
+        const errorMsg = document.getElementById('errorMsg');
+        
+        btn.innerText = '驗證中...';
+        btn.disabled = true;
+        errorMsg.style.display = 'none';
+
+        try {
+            // 將密碼透過標頭發送給 Cloudflare 驗證
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Admin-Password': input 
+                },
+                body: JSON.stringify({ action: 'login' })
+            });
+
+            if (response.ok) {
+                // 驗證成功，將密鑰記錄在 Session 中
+                sessionStorage.setItem('adminToken', input); 
+                showMainSystem();
+            } else {
+                // 密碼錯誤
+                errorMsg.style.display = 'block';
+                document.getElementById('passwordInput').value = '';
+            }
+        } catch (error) {
+            alert('連線失敗，請檢查網路或 API 設定');
+        } finally {
+            btn.innerText = '登入';
+            btn.disabled = false;
         }
     }
 
@@ -203,13 +236,22 @@
         loadData();
     }
 
-    // 💡 登出功能
     function logout() {
-        sessionStorage.removeItem('isAdminLoggedIn');
+        sessionStorage.removeItem('adminToken');
         location.reload(); 
     }
 
-    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    // 取得授權標頭的共用函式 (確保每次送出請求都帶上密碼)
+    function getAuthHeaders() {
+        return {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': sessionStorage.getItem('adminToken')
+        };
+    }
+
+    // ==========================================
+    // 庫存管理核心邏輯
+    // ==========================================
     let inventoryData = [];
     let editingId = null; 
     let currentOriginalPhoto = ''; 
@@ -221,12 +263,12 @@
     async function loadData() {
         tableBody.innerHTML = '<tr><td colspan="13" style="text-align:center;">載入中... ☁️</td></tr>';
         try {
+            // 讀取資料不需密碼
             const res = await fetch(API_URL);
             inventoryData = await res.json();
             renderTable();
             renderDashboard(); 
             
-            // 載入完畢後，重置全選按鈕狀態
             document.getElementById('selectAll').checked = false;
             updateBatchDeleteBtn();
         } catch (error) {
@@ -239,11 +281,9 @@
             document.getElementById('dashboardCard').style.display = 'none';
             return;
         }
-        
         document.getElementById('dashboardCard').style.display = 'block';
 
         let totalValue = 0; let totalQty = 0; let vendorCounts = {};
-        
         inventoryData.forEach(item => {
             totalValue += (item.totalPrice || 0);
             totalQty += (item.quantity || 0);
@@ -257,26 +297,19 @@
 
         const vendorLabels = Object.keys(vendorCounts);
         const vendorData = Object.values(vendorCounts);
-        
         const ctxVendor = document.getElementById('vendorChart').getContext('2d');
         if (vendorChartInstance) vendorChartInstance.destroy(); 
-        
         vendorChartInstance = new Chart(ctxVendor, {
             type: 'doughnut',
-            data: {
-                labels: vendorLabels,
-                datasets: [{ data: vendorData, backgroundColor: ['#3498db', '#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e', '#e67e22'], borderWidth: 0 }]
-            },
+            data: { labels: vendorLabels, datasets: [{ data: vendorData, backgroundColor: ['#3498db', '#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e', '#e67e22'], borderWidth: 0 }] },
             options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '📦 供應商產品比例' } } }
         });
 
         const topValuedItems = [...inventoryData].sort((a, b) => (b.totalPrice || 0) - (a.totalPrice || 0)).slice(0, 5);
         const itemLabels = topValuedItems.map(item => item.productName || item.productId);
         const itemValues = topValuedItems.map(item => item.totalPrice || 0);
-
         const ctxValue = document.getElementById('valueChart').getContext('2d');
         if (valueChartInstance) valueChartInstance.destroy(); 
-        
         valueChartInstance = new Chart(ctxValue, {
             type: 'bar',
             data: { labels: itemLabels, datasets: [{ label: '庫存總價值 (NT$)', data: itemValues, backgroundColor: '#27ae60', borderRadius: 5 }] },
@@ -311,22 +344,38 @@
         }
     });
 
+    // 💡 發送新增/修改請求時帶上密碼
     async function saveToServer(itemData) {
         try {
-            await fetch(API_URL, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(itemData) });
+            const response = await fetch(API_URL, { 
+                method: editingId ? 'PUT' : 'POST', 
+                headers: getAuthHeaders(), 
+                body: JSON.stringify(itemData) 
+            });
+            if (!response.ok) throw new Error('授權失敗或儲存錯誤');
             cancelEdit(); await loadData();
-        } catch (err) { alert('儲存失敗'); }
-    }
-
-    async function deleteItem(id) {
-        if(confirm('確定刪除？')) {
-            await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
-            if (id === editingId) cancelEdit();
-            await loadData(); 
+        } catch (err) { 
+            alert('儲存失敗：可能密碼已過期，請嘗試登出並重新登入。'); 
         }
     }
 
-    // 💡 批量刪除邏輯
+    // 💡 單筆刪除請求帶上密碼
+    async function deleteItem(id) {
+        if(confirm('確定刪除？')) {
+            try {
+                const response = await fetch(`${API_URL}?id=${id}`, { 
+                    method: 'DELETE',
+                    headers: { 'X-Admin-Password': sessionStorage.getItem('adminToken') }
+                });
+                if (!response.ok) throw new Error('刪除失敗');
+                if (id === editingId) cancelEdit();
+                await loadData(); 
+            } catch (err) {
+                alert('刪除失敗：可能密碼已過期或未授權');
+            }
+        }
+    }
+
     function toggleSelectAll() {
         const selectAllCheckbox = document.getElementById('selectAll');
         const checkboxes = document.querySelectorAll('.row-checkbox');
@@ -340,7 +389,6 @@
         const batchDeleteBtn = document.getElementById('batchDeleteBtn');
         const selectAllCheckbox = document.getElementById('selectAll');
 
-        // 如果有勾選項目，顯示批量刪除按鈕
         if (checkedCount > 0) {
             batchDeleteBtn.style.display = 'inline-block';
             batchDeleteBtn.innerText = `🗑️ 批量刪除 (${checkedCount})`;
@@ -348,12 +396,10 @@
             batchDeleteBtn.style.display = 'none';
         }
 
-        // 同步「全選」方塊的狀態
-        if (totalCheckboxes > 0) {
-            selectAllCheckbox.checked = (checkedCount === totalCheckboxes);
-        }
+        if (totalCheckboxes > 0) selectAllCheckbox.checked = (checkedCount === totalCheckboxes);
     }
 
+    // 💡 批量刪除請求帶上密碼
     async function batchDelete() {
         const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
         const idsToDelete = Array.from(checkedBoxes).map(cb => cb.value);
@@ -366,18 +412,17 @@
             batchDeleteBtn.disabled = true;
 
             try {
-                // 使用 Promise.all 同時發送多個刪除請求以加快速度
                 await Promise.all(idsToDelete.map(id => 
-                    fetch(`${API_URL}?id=${id}`, { method: 'DELETE' })
+                    fetch(`${API_URL}?id=${id}`, { 
+                        method: 'DELETE',
+                        headers: { 'X-Admin-Password': sessionStorage.getItem('adminToken') }
+                    })
                 ));
                 
-                // 如果刪除的項目中包含正在編輯的項目，取消編輯模式
                 if (idsToDelete.includes(String(editingId))) cancelEdit();
-                
                 alert(`✅ 成功刪除 ${idsToDelete.length} 筆資料！`);
             } catch (error) {
-                console.error(error);
-                alert('部分刪除發生錯誤，請重新整理頁面後再試。');
+                alert('部分刪除發生錯誤，請確認授權或網路狀態。');
             } finally {
                 batchDeleteBtn.style.display = 'none';
                 batchDeleteBtn.disabled = false;
@@ -425,11 +470,8 @@
             const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;background:#eee;font-size:12px;">無</div>`;
             const fm = n => '$' + n.toLocaleString();
             
-            // 💡 在每個資料列的最前方加入 Checkbox，並綁定 onChange 事件
             tr.innerHTML = `
-                <td style="text-align: center;">
-                    <input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()">
-                </td>
+                <td style="text-align: center;"><input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()"></td>
                 <td>${photo}</td><td>${item.orderId||''}</td><td><strong>${item.productId||''}</strong></td>
                 <td>${item.productName||''}</td><td>${item.spec||''}</td><td>${item.vendor||''}</td>
                 <td>${item.purpose||''}</td><td>${item.location||''}</td><td>${fm(item.price)}</td>
@@ -445,6 +487,7 @@
         const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.setAttribute("download", "庫存導入範本.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
+    // 💡 CSV匯入請求帶上密碼
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
         Papa.parse(file, {
@@ -457,9 +500,14 @@
                 });
                 try {
                     tableBody.innerHTML = `<tr><td colspan="13" style="text-align:center;">正在處理 ${importData.length} 筆資料，請稍候...</td></tr>`;
-                    await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(importData) });
+                    const response = await fetch(API_URL, { 
+                        method: 'POST', 
+                        headers: getAuthHeaders(), 
+                        body: JSON.stringify(importData) 
+                    });
+                    if (!response.ok) throw new Error('匯入驗證失敗');
                     alert(`✅ 成功導入 ${importData.length} 筆庫存資料！`); await loadData();
-                } catch (error) { alert("匯入發生錯誤"); await loadData(); }
+                } catch (error) { alert("匯入發生錯誤，可能密碼錯誤或未授權。"); await loadData(); }
                 e.target.value = ''; 
             }
         });
