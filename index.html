@@ -49,7 +49,6 @@
         .card-img:hover { transform: scale(1.05); }
         .no-img-text { color: #95a5a6; font-size: 1.2rem; }
         
-        /* 💡 加寬了庫存標籤，以容納更詳細的數量 */
         .qty-badge { position: absolute; top: 15px; left: 15px; background-color: var(--secondary-color); color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); pointer-events: none; }
 
         .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
@@ -61,7 +60,7 @@
         .card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 15px; border-top: 1px solid #eee; }
         .card-price { font-size: 1.2rem; font-weight: bold; color: #27ae60; }
         
-        /* 💡 存放位置的點擊按鈕樣式 */
+        /* 存放位置的點擊按鈕樣式 */
         .loc-chip { display: inline-block; background-color: #fdf2e9; color: #d35400; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; border: 1px solid #f5cba7; margin-top: 5px; }
         .loc-chip:hover { background-color: #f5cba7; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .card-location-wrapper { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -85,25 +84,23 @@
 
 <div class="container">
     <div class="header">
-        <!-- 💡 若後台檔案名稱為 Inventory_System.html，這裡必須對應 -->
         <a href="Inventory_System.html" class="admin-btn">⚙️ 前往後台管理</a>
         <h1>📦 器皿型錄展示</h1>
         <p>一目了然的數位庫存清單</p>
     </div>
 
-    <!-- 大分類頁籤按鈕 -->
+    <!-- 💡 調整了大分類頁籤順序：全部優先，接著 P ➔ S ➔ G -->
     <div class="category-tabs">
-        <button class="cat-btn" onclick="setCategory('P')">☕ 瓷器</button>
-        <button class="cat-btn" onclick="setCategory('G')">🍷 玻璃</button>
-        <button class="cat-btn" onclick="setCategory('S')">🍴 銀器</button>
         <button class="cat-btn active" onclick="setCategory('ALL')">📂 顯示全部</button>
+        <button class="cat-btn" onclick="setCategory('P')">☕ 瓷器</button>
+        <button class="cat-btn" onclick="setCategory('S')">🍴 銀器</button>
+        <button class="cat-btn" onclick="setCategory('G')">🍷 玻璃</button>
     </div>
 
     <div class="controls-container">
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋品名、編號、用途、廠商、位置...">
 
         <select id="sortSelect" class="sort-select">
-            <!-- 💡 預設使用自訂拖拉排序 -->
             <option value="custom" selected>🌟 自訂拖拉排序</option>
             <option value="sku-asc">🔡 產品編號 (A ➔ Z)</option>
             <option value="sku-desc">🔡 產品編號 (Z ➔ A)</option>
@@ -198,11 +195,10 @@
         applyFilterAndSort();
     }
 
-    // 💡 點擊「存放位置」觸發的過濾功能
+    // 點擊「存放位置」觸發的過濾功能
     window.filterByLocation = function(locName) {
         searchInput.value = locName;
         applyFilterAndSort();
-        // 點擊後讓畫面稍微往上捲動，方便看搜尋結果
         window.scrollTo({ top: document.querySelector('.controls-container').offsetTop - 20, behavior: 'smooth' });
     }
 
@@ -242,11 +238,13 @@
         }
 
         const sortMode = sortSelect.value;
+        
+        // 💡 產品編號排序的優先權改為： P (瓷器) > S (銀器) > G (玻璃)
         const getSkuPriority = (sku) => {
             sku = (sku || '').toUpperCase();
             if (sku.startsWith('P')) return 1;
-            if (sku.startsWith('G')) return 2;
-            if (sku.startsWith('S')) return 3;
+            if (sku.startsWith('S')) return 2;
+            if (sku.startsWith('G')) return 3;
             return 4; 
         };
 
@@ -254,12 +252,11 @@
             const totalQtyA = (a.quantity || 0) + (a.quantityOnsite || 0);
             const totalQtyB = (b.quantity || 0) + (b.quantityOnsite || 0);
 
-            // 💡 處理你辛苦排好的拖拉順序 (預設)
+            // 處理拖拉順序 (預設)
             if (sortMode === 'custom') {
                 const orderA = a.sortOrder !== undefined && a.sortOrder !== null ? a.sortOrder : Number.MAX_SAFE_INTEGER; 
                 const orderB = b.sortOrder !== undefined && b.sortOrder !== null ? b.sortOrder : Number.MAX_SAFE_INTEGER;
                 if (orderA !== orderB) return orderA - orderB;
-                // 如果兩者名次相同(例如都是0新加入)，則比較ID讓新的在上面
                 return b.id - a.id;
             }
 
@@ -270,7 +267,7 @@
             if (sortMode === 'price-desc') return b.price - a.price;
             if (sortMode === 'price-asc') return a.price - b.price;
 
-            // 優先權邏輯的 SKU 排序
+            // 優先權邏輯的 SKU 排序 (P ➔ S ➔ G)
             if (sortMode === 'sku-asc') {
                 const priorityA = getSkuPriority(a.productId);
                 const priorityB = getSkuPriority(b.productId);
@@ -324,7 +321,7 @@
             const qWarehouse = item.quantity || 0;
             const qTotal = qOnsite + qWarehouse;
 
-            // 💡 解析「存放位置」，將其切割成多個按鈕 (支援以逗號或斜線分隔)
+            // 解析「存放位置」，將其切割成多個按鈕
             let locHtml = '<div class="card-location-wrapper">';
             if (!item.location || item.location.trim() === '') {
                 locHtml += `<span style="font-size: 0.9rem; color: #7f8c8d; margin-top:5px;">📍 未指定位置</span>`;
@@ -347,7 +344,6 @@
                         <h3 class="card-title">${item.productName || '未命名產品'}</h3>
                         <div class="card-info-list">${infoListHtml}</div>
                         <div class="card-meta">
-                            <!-- 💡 插入可點擊的存放位置按鈕 -->
                             ${locHtml}
                         </div>
                         <div style="text-align: right; margin-top: 15px;">
