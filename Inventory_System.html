@@ -146,7 +146,7 @@
                 <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出 CSV (含照片)</button>
                 <button class="btn btn-cancel" style="display:inline-block; background-color:#7f8c8d;" onclick="downloadTemplate()">📄 下載 CSV 範本</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
-                <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 一鍵導入 CSV</button>
+                <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 智慧導入 CSV (可覆蓋)</button>
             </div>
         </div>
         <div class="table-responsive">
@@ -253,15 +253,16 @@
         initInlineEdit(); 
     }
 
-    // 💡 更新：匯出 CSV，加入「照片資料」
+    // 💡 匯出時加入「系統ID」，作為後續更新的精準比對鑰匙
     function exportCSV() {
         if (inventoryData.length === 0) { alert("沒有資料可以匯出！"); return; }
         const csvData = inventoryData.map(item => ({
+            "系統ID": item.id || "",
             "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "",
             "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "",
             "單價": item.price || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0,
             "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0,
-            "照片資料": item.photo || "" // 寫入 Base64 照片代碼
+            "照片資料": item.photo || "" 
         }));
         const csvContent = "\uFEFF" + Papa.unparse(csvData, { header: true });
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -430,34 +431,77 @@
     function updateBatchDeleteBtn() { const c=document.querySelectorAll('.row-checkbox:checked').length; const btn=document.getElementById('batchDeleteBtn'); btn.style.display=c>0?'inline-block':'none'; if(c>0)btn.innerText=`🗑️ 批量刪除 (${c})`; }
     async function batchDelete() { const cb=document.querySelectorAll('.row-checkbox:checked'); const ids=Array.from(cb).map(c=>c.value); if(ids.length===0)return; if(confirm(`確定刪除 ${ids.length} 筆資料嗎？`)){ document.getElementById('batchDeleteBtn').innerText='刪除中...'; await Promise.all(ids.map(id=>fetch(`${API_URL}?id=${id}`,{method:'DELETE',headers:getAuthHeaders()}))); await loadData(); } }
     
-    // 💡 下載範本時，也加上照片資料的欄位
     function downloadTemplate() {
-        const headers = ["訂購編號", "產品編號", "品名", "規格", "廠商", "用途", "存放位置", "單價", "現場庫存", "倉庫庫存", "忠孝外借", "艾朋外借", "其他外借", "照片資料"];
+        const headers = ["系統ID", "訂購編號", "產品編號", "品名", "規格", "廠商", "用途", "存放位置", "單價", "現場庫存", "倉庫庫存", "忠孝外借", "艾朋外借", "其他外借", "照片資料"];
         const csvContent = "\uFEFF" + headers.join(",") + "\n";
         const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.setAttribute("download", "庫存導入範本.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
-    // 💡 匯入 CSV 時，解析出照片資料儲存到資料庫
+    // 💡 智慧匯入邏輯 (比對覆蓋與新增)
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
         Papa.parse(file, {
             header: true, skipEmptyLines: true,
             complete: async function(results) {
                 if (results.data.length === 0) return alert("檔案內沒有資料！");
-                const importData = results.data.map((row, index) => {
+                
+                let updateCount = 0;
+                let insertCount = 0;
+                const upsertData = [];
+
+                results.data.forEach((row, index) => {
+                    // 防呆：如果編號跟品名都是空的，跳過不處理
+                    if (!row['產品編號'] && !row['品名']) return;
+
                     const price = parseFloat(row['單價']) || 0;
                     const qOnsite = parseInt(row['現場庫存']) || 0;
                     const qWarehouse = parseInt(row['倉庫庫存']) || parseInt(row['數量']) || 0; 
                     const qBZ = parseInt(row['忠孝外借']) || 0; const qBA = parseInt(row['艾朋外借']) || 0; const qBO = parseInt(row['其他外借']) || 0;
                     const tQty = qOnsite + qWarehouse + qBZ + qBA + qBO;
+                    const csvPhoto = row['照片資料'] || '';
+
+                    let isUpdate = false;
+                    let targetId = null;
+                    let originalPhoto = '';
+
+                    // 1. 優先比對「系統ID」
+                    if (row['系統ID']) {
+                        const existing = inventoryData.find(i => String(i.id) === String(row['系統ID']));
+                        if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; }
+                    }
                     
-                    return { id: Date.now() + index, photo: row['照片資料'] || '', orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: price * tQty };
+                    // 2. 如果沒有系統ID，退而求其次比對「產品編號 (SKU)」
+                    if (!isUpdate && row['產品編號']) {
+                        const existing = inventoryData.find(i => String(i.productId) === String(row['產品編號']));
+                        if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; }
+                    }
+
+                    if (isUpdate) { updateCount++; } 
+                    else { insertCount++; targetId = Date.now() + index; }
+
+                    upsertData.push({
+                        isUpdate: isUpdate,
+                        id: targetId, 
+                        photo: csvPhoto || originalPhoto, // 💡 智慧保留：如果Excel清空了照片，會自動保留系統原有的照片
+                        orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', 
+                        spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', 
+                        price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: price * tQty 
+                    });
                 });
+
+                if (upsertData.length === 0) return alert("沒有找到有效的資料列！");
+
+                // 💡 匯入前的防呆確認視窗
+                const confirmMsg = `🔍 系統比對完畢！\n\n將執行以下操作：\n🔄 覆蓋更新舊資料：${updateCount} 筆\n✨ 建立全新資料：${insertCount} 筆\n\n是否確定執行導入？`;
+                if (!confirm(confirmMsg)) { e.target.value = ''; return; }
+
                 try {
-                    tableBody.innerHTML = `<tr><td colspan="15" style="text-align:center;">正在處理 ${importData.length} 筆資料...</td></tr>`;
-                    await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(importData) });
-                    alert(`✅ 成功導入 ${importData.length} 筆資料！`); await loadData();
-                } catch (error) { alert("匯入發生錯誤。"); await loadData(); } e.target.value = ''; 
+                    tableBody.innerHTML = `<tr><td colspan="15" style="text-align:center;">正在處理 ${upsertData.length} 筆資料...</td></tr>`;
+                    // 發送 batchUpsert 指令給 Cloudflare
+                    await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'batchUpsert', items: upsertData }) });
+                    alert(`✅ 成功完成 ${upsertData.length} 筆資料處理！`); await loadData();
+                } catch (error) { alert("匯入發生錯誤，可能密碼錯誤或未授權。"); await loadData(); } 
+                e.target.value = ''; 
             }
         });
     });
