@@ -16,9 +16,7 @@
         .admin-btn { position: absolute; top: 0; right: 0; background-color: #34495e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.95rem; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px; }
         .admin-btn:hover { background-color: #1a252f; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
 
-        @media (max-width: 768px) {
-            .admin-btn { position: relative; display: inline-flex; justify-content: center; margin-bottom: 15px; }
-        }
+        @media (max-width: 768px) { .admin-btn { position: relative; display: inline-flex; justify-content: center; margin-bottom: 15px; } }
 
         .category-tabs { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
         .cat-btn { background-color: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); padding: 10px 25px; border-radius: 30px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
@@ -39,15 +37,11 @@
         .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-bottom: 30px; }
         .card { background-color: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.08); transition: transform 0.3s ease; display: flex; flex-direction: column; }
         .card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.12); }
-        
-        /* 💡 核心修改：照片區塊改為純白底色，加高到 250px 給予呼吸空間，內縮 padding */
         .card-img-wrapper { width: 100%; height: 250px; background-color: #ffffff; border-bottom: 1px solid #f4f6f9; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; padding: 15px; box-sizing: border-box; }
-        
-        /* 💡 核心修改：改為 object-fit: contain，保證不裁切完整顯示 */
         .card-img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; transition: transform 0.3s ease; }
         .card-img:hover { transform: scale(1.08); }
-        
         .no-img-text { color: #95a5a6; font-size: 1.2rem; }
+        
         .qty-badge { position: absolute; top: 15px; left: 15px; background-color: var(--secondary-color); color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); pointer-events: none; z-index: 2; }
 
         .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; background-color: var(--card-bg); }
@@ -70,7 +64,6 @@
         .page-info { font-weight: 600; color: var(--primary-color); }
         .loading, .empty-state { text-align: center; font-size: 1.2rem; color: #7f8c8d; padding: 50px; grid-column: 1 / -1; }
 
-        /* 💡 點擊放大的 Modal 也是自適應的 */
         .modal { display: none; position: fixed; z-index: 1000; padding-top: 60px; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
         .modal-content { margin: auto; display: block; max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 8px; animation: zoom 0.3s; }
         .modal-caption { margin: auto; display: block; width: 80%; text-align: center; color: #fff; padding: 15px 0; font-size: 1.3rem; font-weight: bold; }
@@ -88,7 +81,6 @@
         <p>一目了然的數位庫存清單</p>
     </div>
 
-    <!-- 頁籤：全部優先，接著 P ➔ S ➔ G -->
     <div class="category-tabs">
         <button class="cat-btn active" onclick="setCategory('ALL')">📂 顯示全部</button>
         <button class="cat-btn" onclick="setCategory('P')">☕ 瓷器</button>
@@ -113,10 +105,7 @@
     </div>
 
     <div class="tags-container" id="vendorTagsContainer"></div>
-
-    <div class="grid-container" id="cardGrid">
-        <div class="loading">資料載入中... ☁️</div>
-    </div>
+    <div class="grid-container" id="cardGrid"><div class="loading">資料載入中... ☁️</div></div>
 
     <div class="pagination" id="paginationControls" style="display: none;">
         <button class="btn-page" id="prevBtn" onclick="changePage(-1)">上一頁</button>
@@ -135,7 +124,6 @@
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
     let inventoryData = [];
     let filteredData = []; 
-    
     let currentCategory = 'ALL'; 
     let currentPage = 1;
     const itemsPerPage = 12;
@@ -154,106 +142,77 @@
             
             document.querySelector(`.cat-btn[onclick="setCategory('${currentCategory}')"]`).classList.add('active');
             applyFilterAndSort(); 
-        } catch (error) {
-            gridContainer.innerHTML = '<div class="loading" style="color:red;">連線失敗，請檢查網路或 API 設定。</div>';
-        }
+        } catch (error) { gridContainer.innerHTML = '<div class="loading" style="color:red;">連線失敗，請檢查網路。</div>'; }
     }
 
     function setCategory(categoryPrefix) {
         currentCategory = categoryPrefix;
         document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.cat-btn[onclick="setCategory('${categoryPrefix}')"]`).classList.add('active');
-        searchInput.value = '';
-        applyFilterAndSort();
+        searchInput.value = ''; applyFilterAndSort();
     }
 
     function renderVendorTags(dataToParse) {
         const vendors = [...new Set(dataToParse.map(item => (item.vendor || '').trim()).filter(v => v !== ''))];
-        if (vendors.length === 0) {
-            vendorTagsContainer.style.display = 'none'; return;
-        }
+        if (vendors.length === 0) { vendorTagsContainer.style.display = 'none'; return; }
         vendorTagsContainer.style.display = 'flex';
         vendorTagsContainer.innerHTML = `<button class="vendor-tag" data-vendor="" onclick="filterByVendor('')">全部廠商</button>`;
         vendors.forEach(vendor => {
-            const btn = document.createElement('button');
-            btn.className = 'vendor-tag';
-            btn.setAttribute('data-vendor', vendor);
-            btn.innerText = vendor;
-            btn.onclick = () => filterByVendor(vendor);
-            vendorTagsContainer.appendChild(btn);
+            const btn = document.createElement('button'); btn.className = 'vendor-tag';
+            btn.setAttribute('data-vendor', vendor); btn.innerText = vendor;
+            btn.onclick = () => filterByVendor(vendor); vendorTagsContainer.appendChild(btn);
         });
     }
 
-    function filterByVendor(vendorName) {
-        searchInput.value = vendorName;
-        applyFilterAndSort();
-    }
+    function filterByVendor(vendorName) { searchInput.value = vendorName; applyFilterAndSort(); }
 
     window.filterByLocation = function(locName) {
-        searchInput.value = locName;
-        applyFilterAndSort();
+        searchInput.value = locName; applyFilterAndSort();
         window.scrollTo({ top: document.querySelector('.controls-container').offsetTop - 20, behavior: 'smooth' });
     }
 
     function applyFilterAndSort() {
         let categorizedData = inventoryData;
         if (currentCategory !== 'ALL') {
-            categorizedData = inventoryData.filter(item => {
-                const sku = (item.productId || '').toUpperCase();
-                return sku.startsWith(currentCategory);
-            });
+            categorizedData = inventoryData.filter(item => (item.productId || '').toUpperCase().startsWith(currentCategory));
         }
 
         renderVendorTags(categorizedData);
-
-        const exactQuery = searchInput.value.trim();
-        const query = exactQuery.toLowerCase();
-        let tempArray = [];
+        const exactQuery = searchInput.value.trim(); const query = exactQuery.toLowerCase(); let tempArray = [];
 
         document.querySelectorAll('.vendor-tag').forEach(tag => {
             const tagVendor = tag.getAttribute('data-vendor');
-            if (tagVendor === exactQuery) { tag.classList.add('active'); } 
-            else if (exactQuery === '' && tagVendor === '') { tag.classList.add('active'); } 
-            else { tag.classList.remove('active'); }
+            if (tagVendor === exactQuery) tag.classList.add('active'); 
+            else if (exactQuery === '' && tagVendor === '') tag.classList.add('active'); 
+            else tag.classList.remove('active');
         });
 
-        if (query === '') {
-            tempArray = [...categorizedData];
-        } else {
+        if (query === '') { tempArray = [...categorizedData]; } 
+        else {
             const terms = query.split(/\s+/);
             tempArray = categorizedData.filter(item => {
-                const searchableText = [
-                    item.productName, item.productId, item.purpose,
-                    item.location, item.vendor, item.spec, item.orderId
-                ].map(v => (v || '').toLowerCase()).join(' ');
+                const searchableText = [item.productName, item.productId, item.purpose, item.location, item.vendor, item.spec, item.orderId].map(v => (v || '').toLowerCase()).join(' ');
                 return terms.every(term => searchableText.includes(term));
             });
         }
 
         const sortMode = sortSelect.value;
-        
         const getSkuPriority = (sku) => {
             sku = (sku || '').toUpperCase();
-            if (sku.startsWith('P')) return 1;
-            if (sku.startsWith('S')) return 2;
-            if (sku.startsWith('G')) return 3;
-            return 4; 
+            if (sku.startsWith('P')) return 1; if (sku.startsWith('S')) return 2; if (sku.startsWith('G')) return 3; return 4; 
         };
 
         tempArray.sort((a, b) => {
-            const totalQtyA = (a.quantity || 0) + (a.quantityOnsite || 0);
-            const totalQtyB = (b.quantity || 0) + (b.quantityOnsite || 0);
+            // 💡 排序計算包含所有外借
+            const totalQtyA = (a.quantity||0) + (a.quantityOnsite||0) + (a.borrowZhongxiao||0) + (a.borrowApon||0) + (a.borrowOther||0);
+            const totalQtyB = (b.quantity||0) + (b.quantityOnsite||0) + (b.borrowZhongxiao||0) + (b.borrowApon||0) + (b.borrowOther||0);
 
             if (sortMode === 'custom') {
                 const orderA = a.sortOrder !== undefined && a.sortOrder !== null && a.sortOrder !== 0 ? a.sortOrder : Number.MAX_SAFE_INTEGER; 
                 const orderB = b.sortOrder !== undefined && b.sortOrder !== null && b.sortOrder !== 0 ? b.sortOrder : Number.MAX_SAFE_INTEGER;
-                
                 if (orderA !== orderB) return orderA - orderB;
-                
-                const priorityA = getSkuPriority(a.productId);
-                const priorityB = getSkuPriority(b.productId);
-                if (priorityA !== priorityB) return priorityA - priorityB;
-                return (a.productId || '').localeCompare(b.productId || '');
+                const priorityA = getSkuPriority(a.productId); const priorityB = getSkuPriority(b.productId);
+                if (priorityA !== priorityB) return priorityA - priorityB; return (a.productId || '').localeCompare(b.productId || '');
             }
 
             if (sortMode === 'newest') return b.id - a.id; 
@@ -264,39 +223,28 @@
             if (sortMode === 'price-asc') return a.price - b.price;
 
             if (sortMode === 'sku-asc') {
-                const priorityA = getSkuPriority(a.productId);
-                const priorityB = getSkuPriority(b.productId);
-                if (priorityA !== priorityB) return priorityA - priorityB;
-                return (a.productId || '').localeCompare(b.productId || '');
+                const priorityA = getSkuPriority(a.productId); const priorityB = getSkuPriority(b.productId);
+                if (priorityA !== priorityB) return priorityA - priorityB; return (a.productId || '').localeCompare(b.productId || '');
             }
             if (sortMode === 'sku-desc') {
-                const priorityA = getSkuPriority(a.productId);
-                const priorityB = getSkuPriority(b.productId);
-                if (priorityA !== priorityB) return priorityB - priorityA;
-                return (b.productId || '').localeCompare(a.productId || '');
+                const priorityA = getSkuPriority(a.productId); const priorityB = getSkuPriority(b.productId);
+                if (priorityA !== priorityB) return priorityB - priorityA; return (b.productId || '').localeCompare(a.productId || '');
             }
             return 0;
         });
 
-        filteredData = tempArray;
-        currentPage = 1; 
-        renderCards();
+        filteredData = tempArray; currentPage = 1; renderCards();
     }
 
-    searchInput.addEventListener('input', applyFilterAndSort);
-    sortSelect.addEventListener('change', applyFilterAndSort);
+    searchInput.addEventListener('input', applyFilterAndSort); sortSelect.addEventListener('change', applyFilterAndSort);
 
     function renderCards() {
         if (filteredData.length === 0) {
-            gridContainer.innerHTML = '<div class="empty-state">目前這個分類下找不到產品 😕</div>';
-            paginationControls.style.display = 'none';
-            return;
+            gridContainer.innerHTML = '<div class="empty-state">目前這個分類下找不到產品 😕</div>'; paginationControls.style.display = 'none'; return;
         }
 
         const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
-        if (currentPage < 1) currentPage = 1;
-        if (currentPage > totalPages) currentPage = totalPages;
-
+        if (currentPage < 1) currentPage = 1; if (currentPage > totalPages) currentPage = totalPages;
         const startIndex = (currentPage - 1) * itemsPerPage;
         const currentData = filteredData.slice(startIndex, startIndex + itemsPerPage);
 
@@ -304,86 +252,71 @@
 
         currentData.forEach(item => {
             const formatMoney = (num) => '$' + (num || 0).toLocaleString();
-            const photoHtml = item.photo 
-                ? `<img src="${item.photo}" class="card-img" onclick="openModal('${item.photo}', '${item.productName || '未命名產品'}')">`
-                : `<span class="no-img-text">無圖片</span>`;
+            const photoHtml = item.photo ? `<img src="${item.photo}" class="card-img" onclick="openModal('${item.photo}', '${item.productName || '未命名產品'}')">` : `<span class="no-img-text">無圖片</span>`;
 
             const purposeHtml = item.purpose ? `<div><span class="info-tag">用途</span>${item.purpose}</div>` : '';
             const specHtml = item.spec ? `<div><span class="info-tag" style="background:#eafaf1; color:#27ae60;">規格</span>${item.spec}</div>` : '';
-            const infoListHtml = (purposeHtml + specHtml) || '<span style="color:#999; font-style:italic;">無詳細說明</span>';
+            let infoListHtml = (purposeHtml + specHtml) || '';
 
+            // 💡 解析外借資料，如果有外借就顯示紫色標籤
             const qOnsite = item.quantityOnsite || 0;
             const qWarehouse = item.quantity || 0;
-            const qTotal = qOnsite + qWarehouse;
+            const qBZ = item.borrowZhongxiao || 0;
+            const qBA = item.borrowApon || 0;
+            const qBO = item.borrowOther || 0;
+            const qBorrowed = qBZ + qBA + qBO;
+            const qTotal = qOnsite + qWarehouse + qBorrowed;
+
+            if (qBorrowed > 0) {
+                let borrowDetails = [];
+                if (qBZ > 0) borrowDetails.push(`忠孝:${qBZ}`);
+                if (qBA > 0) borrowDetails.push(`艾朋:${qBA}`);
+                if (qBO > 0) borrowDetails.push(`其他:${qBO}`);
+                infoListHtml += `<div style="margin-top:5px; font-size:0.9rem;"><span class="info-tag" style="background:#f4ecf7; color:#8e44ad;">外借中</span>${borrowDetails.join(' | ')}</div>`;
+            }
+            if (!infoListHtml) infoListHtml = '<span style="color:#999; font-style:italic;">無詳細說明</span>';
 
             let locHtml = '<div class="card-location-wrapper">';
             if (!item.location || item.location.trim() === '') {
                 locHtml += `<span style="font-size: 0.9rem; color: #7f8c8d; margin-top:5px;">📍 未指定位置</span>`;
             } else {
                 const locArray = item.location.split(/[,/]+/).map(l => l.trim()).filter(l => l !== '');
-                locArray.forEach(loc => {
-                    locHtml += `<span class="loc-chip" onclick="filterByLocation('${loc}')">📍 ${loc}</span>`;
-                });
+                locArray.forEach(loc => { locHtml += `<span class="loc-chip" onclick="filterByLocation('${loc}')">📍 ${loc}</span>`; });
             }
             locHtml += '</div>';
 
+            // 💡 卡片左上角的角標加上「借」
             const cardHtml = `
                 <div class="card">
                     <div class="card-img-wrapper">
-                        <div class="qty-badge">總存: ${qTotal} (現 ${qOnsite} | 倉 ${qWarehouse})</div>
+                        <div class="qty-badge">總存: ${qTotal} (現${qOnsite}|倉${qWarehouse}|借${qBorrowed})</div>
                         ${photoHtml}
                     </div>
                     <div class="card-body">
                         <div class="card-sku">${item.productId || '無編號'} | <strong style="color:var(--secondary-color);">${item.vendor || '未知廠商'}</strong></div>
                         <h3 class="card-title">${item.productName || '未命名產品'}</h3>
                         <div class="card-info-list">${infoListHtml}</div>
-                        <div class="card-meta">
-                            ${locHtml}
-                        </div>
-                        <div style="text-align: right; margin-top: 15px;">
-                            <div class="card-price">${formatMoney(item.price)}</div>
-                        </div>
+                        <div class="card-meta">${locHtml}</div>
+                        <div style="text-align: right; margin-top: 15px;"><div class="card-price">${formatMoney(item.price)}</div></div>
                     </div>
                 </div>
             `;
             gridContainer.insertAdjacentHTML('beforeend', cardHtml);
         });
-
         updatePagination(totalPages);
     }
 
     function updatePagination(totalPages) {
-        paginationControls.style.display = 'flex';
-        document.getElementById('pageInfo').innerText = `第 ${currentPage} 頁 / 共 ${totalPages} 頁`;
-        document.getElementById('prevBtn').disabled = currentPage === 1;
-        document.getElementById('nextBtn').disabled = currentPage === totalPages;
+        paginationControls.style.display = 'flex'; document.getElementById('pageInfo').innerText = `第 ${currentPage} 頁 / 共 ${totalPages} 頁`;
+        document.getElementById('prevBtn').disabled = currentPage === 1; document.getElementById('nextBtn').disabled = currentPage === totalPages;
     }
-
-    function changePage(direction) {
-        currentPage += direction;
-        renderCards();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
+    function changePage(direction) { currentPage += direction; renderCards(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
     const modal = document.getElementById('imageModal');
-    function openModal(imgSrc, caption) {
-        modal.style.display = "block";
-        document.getElementById('expandedImg').src = imgSrc;
-        document.getElementById('modalCaption').innerText = caption;
-        document.body.style.overflow = "hidden";
-    }
-
-    function closeModal() {
-        modal.style.display = "none";
-        document.body.style.overflow = "auto";
-    }
-
-    window.onclick = function(event) {
-        if (event.target == modal) closeModal();
-    }
+    function openModal(imgSrc, caption) { modal.style.display = "block"; document.getElementById('expandedImg').src = imgSrc; document.getElementById('modalCaption').innerText = caption; document.body.style.overflow = "hidden"; }
+    function closeModal() { modal.style.display = "none"; document.body.style.overflow = "auto"; }
+    window.onclick = function(event) { if (event.target == modal) closeModal(); }
 
     loadData();
 </script>
-
 </body>
 </html>
