@@ -33,14 +33,15 @@
         .stat-value { font-size: 2rem; font-weight: bold; margin: 0; }
         .charts-container { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
         .chart-box { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); height: 300px; }
-        .header-actions { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px;}
+        .header-actions { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
         .card-title { margin: 0; color: var(--primary-color); font-size: 1.2rem; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; color: #555; }
         .form-group input { padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 1rem; }
         .form-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
-        .btn { padding: 8px 16px; background-color: var(--secondary-color); color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; font-weight: 600; }
+        .btn { padding: 8px 16px; background-color: var(--secondary-color); color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; font-weight: 600; transition: 0.2s;}
+        .btn:hover { filter: brightness(0.9); }
         .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 0.9rem; }
         .btn-edit { background-color: var(--edit-color); padding: 6px 12px; font-size: 0.9rem; }
         .btn-cancel { background-color: var(--cancel-color); display: none; }
@@ -52,17 +53,14 @@
         tr:hover { background-color: #f8f9fa; }
         .row-checkbox, #selectAll { transform: scale(1.3); cursor: pointer; }
         
-        /* 拖拉手把 */
         .drag-handle { cursor: grab; font-size: 1.5rem; color: #bdc3c7; text-align: center; }
         .drag-handle:active { cursor: grabbing; color: var(--secondary-color); }
         .sortable-ghost { background-color: #eaf2f8 !important; opacity: 0.8; }
         
-        /* 💡 表格直接編輯樣式 (Inline Edit) */
         .editable-cell { cursor: text; border: 1px solid transparent; border-radius: 4px; padding: 4px 8px; transition: 0.2s; background-color: transparent; }
         .editable-cell:hover { border-color: var(--secondary-color); background-color: #fdfefe; }
         .editable-cell:focus { outline: none; border-color: #2ecc71; background-color: #fff; box-shadow: 0 0 5px rgba(46, 204, 113, 0.4); }
         
-        /* 💡 照片上傳標籤樣式 */
         .photo-upload-label { cursor: pointer; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
         .photo-upload-label:hover .photo-overlay { opacity: 1; }
         .photo-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 60px; background: rgba(0,0,0,0.6); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 5px; opacity: 0; transition: 0.2s; font-weight: bold; }
@@ -112,7 +110,7 @@
         </div>
     </div>
 
-    <!-- 傳統新增/編輯表單 -->
+    <!-- 表單區塊 -->
     <div class="card" id="formCard">
         <h2 class="card-title" id="formTitle" style="margin-bottom: 20px;">新增進貨/庫存</h2>
         <form id="inventoryForm">
@@ -140,9 +138,13 @@
     <div class="card">
         <div class="header-actions">
             <h2 class="card-title">目前庫存總覽</h2>
-            <div style="display: flex; gap: 10px; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
                 <button class="btn" id="saveOrderBtn">🔄 正在儲存排序...</button>
                 <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 批量刪除</button>
+                
+                <!-- 💡 新增的匯出 CSV 按鈕 -->
+                <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出 CSV</button>
+                
                 <button class="btn btn-cancel" style="display:inline-block; background-color:#7f8c8d;" onclick="downloadTemplate()">📄 下載 CSV 範本</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
                 <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 一鍵導入 CSV</button>
@@ -219,7 +221,6 @@
             const fm = n => '$' + n.toLocaleString();
             const qTotal = (item.quantityOnsite || 0) + (item.quantity || 0);
             
-            // 💡 升級版 Table Row：全部加上可編輯屬性 (contenteditable) 與點擊換照片功能
             tr.innerHTML = `
                 <td class="drag-handle" title="按住拖曳排序">☰</td>
                 <td style="text-align: center;"><input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()"></td>
@@ -244,93 +245,100 @@
         });
 
         initSortable();
-        initInlineEdit(); // 💡 綁定表格內直接編輯的事件
+        initInlineEdit(); 
     }
 
-    // ==========================================
-    // 💡 表格內直接編輯 (Inline Edit) 核心邏輯
-    // ==========================================
+    // 💡 匯出 CSV 核心邏輯
+    function exportCSV() {
+        if (inventoryData.length === 0) {
+            alert("目前沒有資料可以匯出！");
+            return;
+        }
+        
+        // 整理要匯出的資料，欄位名稱與順序對齊範本，確保日後可以完美無縫導回
+        const csvData = inventoryData.map(item => ({
+            "訂購編號": item.orderId || "",
+            "產品編號": item.productId || "",
+            "品名": item.productName || "",
+            "規格": item.spec || "",
+            "廠商": item.vendor || "",
+            "用途": item.purpose || "",
+            "存放位置": item.location || "",
+            "單價": item.price || 0,
+            "現場庫存": item.quantityOnsite || 0,
+            "倉庫庫存": item.quantity || 0
+        }));
+
+        // 使用 PapaParse 轉換成 CSV 格式，加上 \uFEFF 避免 Excel 中文亂碼
+        const csvContent = "\uFEFF" + Papa.unparse(csvData, { header: true });
+        
+        // 建立下載連結
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        
+        // 產生檔名日期 (YYYYMMDD)
+        const today = new Date();
+        const dateStr = today.getFullYear() + 
+                        String(today.getMonth() + 1).padStart(2, '0') + 
+                        String(today.getDate()).padStart(2, '0');
+        
+        link.setAttribute("href", url);
+        link.setAttribute("download", `雲端庫存清單_${dateStr}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // Inline Edit 核心邏輯
     function initInlineEdit() {
         document.querySelectorAll('.editable-cell').forEach(cell => {
-            // 當游標點進去時，記住原本的值
-            cell.addEventListener('focus', function() {
-                this.dataset.originalValue = this.innerText.trim();
-            });
-
-            // 當游標離開 (點擊其他地方) 時，觸發儲存
-            cell.addEventListener('blur', function() {
-                inlineSave(this);
-            });
-
-            // 當按下 Enter 鍵時，視為完成輸入，自動拿掉游標觸發儲存
-            cell.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault(); // 阻止換行
-                    this.blur();
-                }
-            });
+            cell.addEventListener('focus', function() { this.dataset.originalValue = this.innerText.trim(); });
+            cell.addEventListener('blur', function() { inlineSave(this); });
+            cell.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
         });
     }
 
     async function inlineSave(cellElement) {
         const newValue = cellElement.innerText.trim();
         const originalValue = cellElement.dataset.originalValue;
-        
-        // 如果值沒有改變，就不需要浪費資源存檔
         if (newValue === originalValue) return;
 
         const id = parseInt(cellElement.dataset.id);
         const field = cellElement.dataset.field;
-        
         const itemIndex = inventoryData.findIndex(i => i.id === id);
         if (itemIndex === -1) return;
         
-        // 複製一份原本的資料來更新
         let item = { ...inventoryData[itemIndex] };
 
-        // 如果修改的是數字類型的欄位，需要做數學計算
         if (['price', 'quantityOnsite', 'quantity'].includes(field)) {
             let num = parseFloat(newValue) || 0;
             item[field] = num;
-            cellElement.innerText = num; // 修正格式確保畫面乾淨
+            cellElement.innerText = num; 
             
-            // 瞬間更新畫面上的總數與總價
             item.totalPrice = item.price * (item.quantityOnsite + item.quantity);
             document.getElementById(`totalQty-${id}`).innerText = item.quantityOnsite + item.quantity;
             document.getElementById(`totalPrice-${id}`).innerText = '$' + item.totalPrice.toLocaleString();
         } else {
-            // 文字類型直接更新
             item[field] = newValue;
         }
 
-        // 視覺回饋：變成黃色代表「正在儲存中」
         cellElement.style.backgroundColor = '#fcf3cf';
-
         try {
-            const response = await fetch(API_URL, { 
-                method: 'PUT', 
-                headers: getAuthHeaders(), 
-                body: JSON.stringify(item) 
-            });
+            const response = await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
             if (!response.ok) throw new Error();
-            
-            // 儲存成功，更新本地資料
             inventoryData[itemIndex] = item;
-            
-            // 視覺回饋：變成綠色代表「儲存成功」，一秒後恢復原狀
             cellElement.style.backgroundColor = '#d5f5e3';
             setTimeout(() => cellElement.style.backgroundColor = '', 1000);
-            
-            // 同步更新上方的圖表儀表板
             renderDashboard(); 
         } catch (err) {
-            alert('儲存失敗，請確認網路連線或密碼是否正確');
-            cellElement.innerText = originalValue; // 失敗就還原舊數字
-            cellElement.style.backgroundColor = '#fadbd8'; // 亮紅燈
+            alert('儲存失敗，請確認連線');
+            cellElement.innerText = originalValue; 
+            cellElement.style.backgroundColor = '#fadbd8'; 
         }
     }
 
-    // 💡 表格內直接換照片
     function inlinePhotoUpload(event, id) {
         const file = event.target.files[0];
         if (!file) return;
@@ -341,23 +349,16 @@
 
         const reader = new FileReader();
         reader.onload = async (e) => {
-            item.photo = e.target.result; // 將圖片轉成 Base64
+            item.photo = e.target.result; 
             try {
-                // 直接呼叫 API 更新這筆資料的照片
-                const response = await fetch(API_URL, { 
-                    method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) 
-                });
+                const response = await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
                 if (!response.ok) throw new Error();
-                
-                inventoryData[itemIndex] = item; // 更新本地端
-                renderTable(); // 重新渲染表格展示新圖片
-            } catch (err) {
-                alert('照片上傳失敗，檔案可能過大或網路不穩');
-            }
+                inventoryData[itemIndex] = item; 
+                renderTable(); 
+            } catch (err) { alert('照片上傳失敗，檔案可能過大或網路不穩'); }
         };
         reader.readAsDataURL(file);
     }
-    // ==========================================
 
     function initSortable() {
         if (sortableInstance) sortableInstance.destroy(); 
