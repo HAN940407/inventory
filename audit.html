@@ -27,7 +27,6 @@
         .audit-input { width: 70px; padding: 8px; border: 2px solid #bdc3c7; border-radius: 6px; font-size: 1.1rem; text-align: center; }
         .audit-btn { padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.3s;}
         
-        /* 狀態顏色 */
         .audit-btn.warning { background: #e74c3c; animation: shake 0.5s; }
         .audit-btn.done-correct { background: #27ae60; cursor: default; }
         .audit-btn.done-diff { background: #f39c12; cursor: default; }
@@ -76,8 +75,6 @@
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
     let inventoryData = [];
     let selectedGroup = '';
-    
-    // 💡 紀錄被警告過的商品 ID
     let warnedItems = new Set();
 
     async function checkPassword() {
@@ -131,7 +128,11 @@
         const list = document.getElementById('listContainer');
         list.innerHTML = '';
         
-        const myItems = inventoryData.filter(item => (item.assignedGroup || '').trim() === selectedGroup);
+        // 💡 確保完全過濾掉玻璃 (G 開頭) 的品項，即便後台不小心改到
+        const myItems = inventoryData.filter(item => 
+            (item.assignedGroup || '').trim() === selectedGroup &&
+            !(item.productId || '').toUpperCase().startsWith('G')
+        );
         
         if (myItems.length === 0) {
             list.innerHTML = '<p style="text-align:center; color:#7f8c8d;">太棒了！此組別目前沒有待盤點項目。</p>';
@@ -145,7 +146,6 @@
             const isAudited = item.auditOnsite !== null && item.auditOnsite !== undefined;
             const photo = item.photo ? `<img src="${item.photo}" class="card-img">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;">無</div>`;
             
-            // 根據是否正確顯示不同按鈕狀態
             let btnHtml = '';
             if (isAudited) {
                 const isMatch = item.auditOnsite === (item.quantityOnsite || 0);
@@ -178,7 +178,6 @@
 
     document.getElementById('searchInput').addEventListener('input', renderList);
 
-    // 💡 加入了防呆比對邏輯的送出功能
     async function submitAudit(id) {
         const inputEl = document.getElementById(`input-${id}`);
         if (inputEl.value === '') return alert("請輸入數量");
@@ -188,7 +187,6 @@
         const systemQty = item.quantityOnsite || 0;
         const btn = document.getElementById(`btn-${id}`);
 
-        // 第一次發現數量不符時，給予警告但不送出
         if (val !== systemQty && !warnedItems.has(id)) {
             alert("⚠️ 盤點數量與系統紀錄【不符】！\n\n請務必再重新確認一次。\n若您非常確定實際數量是 " + val + "，請再次點擊「強制送出」。");
             warnedItems.add(id);
@@ -197,7 +195,6 @@
             return;
         }
 
-        // 第二次強制送出，或是第一次數量就正確
         btn.innerText = "傳送中..."; 
         btn.disabled = true;
         btn.className = "audit-btn";
@@ -211,7 +208,6 @@
                 inputEl.disabled = true;
                 if (item) item.auditOnsite = val;
                 
-                // 根據對錯給予不同的視覺回饋
                 if (val === systemQty) {
                     btn.innerText = "✅ 正確";
                     btn.className = "audit-btn done-correct";
