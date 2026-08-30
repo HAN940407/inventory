@@ -45,7 +45,6 @@
         .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 0.9rem; }
         .btn-edit { background-color: var(--edit-color); padding: 6px 12px; font-size: 0.9rem; }
         .btn-cancel { background-color: var(--cancel-color); display: none; }
-        .btn-import { background-color: var(--import-color); }
         .table-responsive { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; }
         th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
@@ -53,11 +52,9 @@
         tr:hover { background-color: #f8f9fa; }
         .row-checkbox, #selectAll { transform: scale(1.3); cursor: pointer; }
         .drag-handle { cursor: grab; font-size: 1.5rem; color: #bdc3c7; text-align: center; }
-        .drag-handle:active { cursor: grabbing; color: var(--secondary-color); }
-        .sortable-ghost { background-color: #eaf2f8 !important; opacity: 0.8; }
         .editable-cell { cursor: text; border: 1px solid transparent; border-radius: 4px; padding: 4px 8px; transition: 0.2s; background-color: transparent; min-width: 20px; text-align: center;}
         .editable-cell:hover { border-color: var(--secondary-color); background-color: #fdfefe; }
-        .editable-cell:focus { outline: none; border-color: #2ecc71; background-color: #fff; box-shadow: 0 0 5px rgba(46, 204, 113, 0.4); }
+        .editable-cell:focus { outline: none; border-color: #2ecc71; background-color: #fff; }
         .photo-upload-label { cursor: pointer; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
         .photo-upload-label:hover .photo-overlay { opacity: 1; }
         .photo-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 60px; background: rgba(0,0,0,0.6); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 5px; opacity: 0; transition: 0.2s; font-weight: bold; }
@@ -65,9 +62,19 @@
         .qty-hl { color: var(--secondary-color); font-weight: bold; }
         .qty-borrow { color: var(--borrow-color); font-weight: bold; }
         .qty-total { color: #e67e22; font-weight: bold; font-size: 1.05rem; }
-        #saveOrderBtn { background-color: #f39c12; display: none; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         .empty-state { text-align: center; padding: 30px; color: #777; font-style: italic; }
+        
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fff; margin: 5% auto; padding: 25px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; }
+        .diff-red { color: #e74c3c; font-weight: bold; }
+        .diff-green { color: #27ae60; font-weight: bold; }
+        .audit-alert-btn { background-color: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; animation: pulse 1.5s infinite;}
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        /* 智能派單區塊樣式 */
+        .assign-block { background: #fdfefe; border: 2px solid #3498db; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .assign-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
+        @media (max-width: 768px) { .assign-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -75,30 +82,51 @@
 <div id="loginScreen">
     <div class="login-box">
         <h2>🔒 後台管理系統</h2>
-        <p style="color:#7f8c8d; margin-bottom:20px; font-size:0.9rem;">請輸入管理員密碼以進入系統</p>
         <input type="password" id="passwordInput" class="login-input" placeholder="輸入密碼" onkeypress="handleEnter(event)">
         <button class="login-btn" onclick="checkPassword()">登入</button>
-        <div id="errorMsg" class="error-msg">密碼錯誤，請重新輸入！</div>
-        <a href="index.html" style="display:block; margin-top:20px; color:var(--secondary-color); text-decoration:none; font-size:0.9rem;">👈 返回前台型錄</a>
+        <div id="errorMsg" class="error-msg">密碼錯誤</div>
+        <a href="index.html" style="display:block; margin-top:20px; color:var(--secondary-color); text-decoration:none; font-size:0.9rem;">👈 返回前台</a>
     </div>
 </div>
 
 <div id="mainContainer" class="container">
     <div class="header">
         <div class="btn-group-top">
-            <a href="index.html" class="front-btn">📱 前往型錄展示</a>
+            <button id="auditAlertBtn" class="audit-alert-btn" onclick="openAuditModal()">🔔 盤點待審核 (0)</button>
+            <a href="index.html" class="front-btn">📱 前台</a>
             <button onclick="logout()" class="front-btn logout-btn">🚪 登出</button>
         </div>
         <h1>☁️ 雲端庫存管理系統 (後台)</h1>
-        <p style="color:#7f8c8d; margin-top:-5px;">💡 點擊表格內的文字或數字即可直接修改，自動存檔！</p>
     </div>
 
-    <!-- 儀表板 -->
+    <!-- 審核 Modal -->
+    <div id="auditModal" class="modal">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="color:var(--primary-color); margin:0;">🔍 現場盲盤差異審核</h2>
+                <button onclick="closeAuditModal()" style="font-size:1.5rem; background:none; border:none; cursor:pointer;">&times;</button>
+            </div>
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>負責組別</th>
+                        <th>商品資訊</th>
+                        <th style="text-align:center;">系統帳面</th>
+                        <th style="text-align:center;">盲盤數</th>
+                        <th style="text-align:center;">差異</th>
+                        <th style="text-align:center;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="auditTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="card" id="dashboardCard" style="display: none;">
         <h2 class="card-title" style="margin-bottom: 20px;">📊 庫存數據分析</h2>
         <div class="dashboard-grid">
-            <div class="stat-box green"><div class="stat-title">總庫存價值 (NT$)</div><div class="stat-value" id="statTotalValue">$0</div></div>
-            <div class="stat-box"><div class="stat-title">總產品品項 (SKU)</div><div class="stat-value" id="statTotalSKU">0</div></div>
+            <div class="stat-box green"><div class="stat-title">總庫存價值</div><div class="stat-value" id="statTotalValue">$0</div></div>
+            <div class="stat-box"><div class="stat-title">總產品品項</div><div class="stat-value" id="statTotalSKU">0</div></div>
             <div class="stat-box orange"><div class="stat-title">所有總計件數</div><div class="stat-value" id="statTotalQty">0</div></div>
         </div>
         <div class="charts-container">
@@ -107,56 +135,70 @@
         </div>
     </div>
 
-    <!-- 表單區塊 -->
+    <!-- 智能派單區塊 -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 20px;">🎲 智能盤點派單</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-10px;">系統將根據「現場數量」與「權重 (正職 2.5 : PT 1)」自動打亂並公平分配所有品項。</p>
+        <div class="assign-block">
+            <div class="assign-grid">
+                <div>
+                    <label style="font-weight:bold; color:#2980b9;">👔 正職名單 (以斜線或空格分隔)</label>
+                    <input type="text" id="regNames" placeholder="例：Ruth/Jerry/Leo" style="width:100%; padding:8px; margin:5px 0 10px 0;">
+                    <label>分幾組？</label>
+                    <input type="number" id="regGroups" value="2" min="1" style="width:60px; padding:5px;">
+                </div>
+                <div>
+                    <label style="font-weight:bold; color:#27ae60;">🧢 PT名單 (以斜線或空格分隔)</label>
+                    <input type="text" id="ptNames" placeholder="例：Richard/Wendy" style="width:100%; padding:8px; margin:5px 0 10px 0;">
+                    <label>分幾組？</label>
+                    <input type="number" id="ptGroups" value="1" min="1" style="width:60px; padding:5px;">
+                </div>
+            </div>
+            <button id="assignBtn" class="btn" style="width:100%; background:#8e44ad;" onclick="runSmartAssignment()">🚀 執行智能打亂派單</button>
+        </div>
+    </div>
+
     <div class="card" id="formCard">
         <h2 class="card-title" id="formTitle" style="margin-bottom: 20px;">新增進貨/庫存</h2>
         <form id="inventoryForm">
             <div class="form-grid">
-                <div class="form-group"><label for="photo">上傳照片</label><input type="file" id="photo" accept="image/*"></div>
-                <div class="form-group"><label for="orderId">訂購編號</label><input type="text" id="orderId" required></div>
-                <div class="form-group"><label for="productId">產品編號 (SKU)</label><input type="text" id="productId" required></div>
-                <div class="form-group"><label for="productName">品名</label><input type="text" id="productName" required></div>
-                <div class="form-group"><label for="spec">規格</label><input type="text" id="spec"></div>
-                <div class="form-group"><label for="vendor">廠商</label><input type="text" id="vendor"></div>
-                <div class="form-group"><label for="purpose">用途</label><input type="text" id="purpose"></div>
-                <div class="form-group"><label for="location">存放位置</label><input type="text" id="location"></div>
-                <div class="form-group"><label for="price">單價 (NT$)</label><input type="number" id="price" min="0" step="0.1" value="0" required></div>
-                
-                <div class="form-group"><label for="quantityOnsite" style="color:var(--secondary-color);">現場庫存</label><input type="number" id="quantityOnsite" min="0" value="0" required></div>
-                <div class="form-group"><label for="quantity">倉庫庫存</label><input type="number" id="quantity" min="0" value="0" required></div>
-                
-                <div class="form-group"><label for="borrowZhongxiao" style="color:var(--borrow-color);">忠孝外借</label><input type="number" id="borrowZhongxiao" min="0" value="0" required></div>
-                <div class="form-group"><label for="borrowApon" style="color:var(--borrow-color);">艾朋外借</label><input type="number" id="borrowApon" min="0" value="0" required></div>
-                <div class="form-group"><label for="borrowOther" style="color:var(--borrow-color);">其他外借</label><input type="number" id="borrowOther" min="0" value="0" required></div>
+                <div class="form-group"><label>照片</label><input type="file" id="photo" accept="image/*"></div>
+                <div class="form-group"><label>訂購編號</label><input type="text" id="orderId" required></div>
+                <div class="form-group"><label>編號(SKU)</label><input type="text" id="productId" required></div>
+                <div class="form-group"><label>品名</label><input type="text" id="productName" required></div>
+                <div class="form-group"><label>規格</label><input type="text" id="spec"></div>
+                <div class="form-group"><label>廠商</label><input type="text" id="vendor"></div>
+                <div class="form-group"><label>用途</label><input type="text" id="purpose"></div>
+                <div class="form-group"><label>存放位置</label><input type="text" id="location"></div>
+                <div class="form-group"><label>單價</label><input type="number" id="price" min="0" step="0.1" value="0" required></div>
+                <div class="form-group"><label style="color:var(--secondary-color);">現場庫存</label><input type="number" id="quantityOnsite" min="0" value="0" required></div>
+                <div class="form-group"><label>倉庫庫存</label><input type="number" id="quantity" min="0" value="0" required></div>
+                <div class="form-group"><label style="color:var(--borrow-color);">忠孝</label><input type="number" id="borrowZhongxiao" min="0" value="0" required></div>
+                <div class="form-group"><label style="color:var(--borrow-color);">艾朋</label><input type="number" id="borrowApon" min="0" value="0" required></div>
+                <div class="form-group"><label style="color:var(--borrow-color);">其他</label><input type="number" id="borrowOther" min="0" value="0" required></div>
             </div>
-            <div class="form-actions">
-                <button type="button" class="btn btn-cancel" id="cancelEditBtn" onclick="cancelEdit()">取消編輯</button>
-                <button type="submit" class="btn" id="submitBtn">新增至庫存</button>
-            </div>
+            <div class="form-actions"><button type="button" class="btn btn-cancel" id="cancelEditBtn" onclick="cancelEdit()">取消編輯</button><button type="submit" class="btn" id="submitBtn">儲存</button></div>
         </form>
     </div>
 
-    <!-- 庫存列表區塊 -->
     <div class="card">
         <div class="header-actions">
             <h2 class="card-title">目前庫存總覽</h2>
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-                <button class="btn" id="saveOrderBtn">🔄 正在儲存排序...</button>
                 <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 批量刪除</button>
-                <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出 CSV (含照片)</button>
-                <button class="btn btn-cancel" style="display:inline-block; background-color:#7f8c8d;" onclick="downloadTemplate()">📄 下載 CSV 範本</button>
+                <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出 CSV</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
-                <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 智慧導入 CSV (可覆蓋)</button>
+                <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 智慧導入 CSV</button>
             </div>
         </div>
         <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 40px; text-align: center;">排序</th>
-                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
-                        <th>照片</th><th>產品編號</th><th>品名</th><th>廠商</th>
-                        <th>單價</th><th>現場</th><th>倉庫</th><th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他外借</th><th style="color:#e67e22;">總數</th><th>總價</th><th>操作</th>
+                        <th style="width: 40px;">排序</th><th style="width: 40px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                        <th>照片</th><th>產品編號</th><th>品名</th>
+                        <th style="color:#8e44ad;">負責組別</th>
+                        <th>廠商</th><th>單價</th><th>現場</th><th>倉庫</th><th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他</th><th style="color:#e67e22;">總數</th><th>總價</th><th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="inventoryTableBody"></tbody>
@@ -167,32 +209,24 @@
 
 <script>
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
-
     let inventoryData = [];
     let editingId = null; 
     let currentOriginalPhoto = ''; 
     const form = document.getElementById('inventoryForm');
     const tableBody = document.getElementById('inventoryTableBody');
-    let vendorChartInstance = null; 
-    let valueChartInstance = null;
-    let sortableInstance = null;
+    let vendorChartInstance = null; let valueChartInstance = null; let sortableInstance = null;
 
     if (sessionStorage.getItem('adminToken')) { showMainSystem(); }
 
     async function checkPassword() {
         const input = document.getElementById('passwordInput').value;
         const btn = document.querySelector('.login-btn');
-        const errorMsg = document.getElementById('errorMsg');
-        btn.innerText = '驗證中...'; btn.disabled = true; errorMsg.style.display = 'none';
+        btn.innerText = '驗證中...'; btn.disabled = true; document.getElementById('errorMsg').style.display = 'none';
         try {
-            const response = await fetch(API_URL, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': input },
-                body: JSON.stringify({ action: 'login' })
-            });
-            if (response.ok) { sessionStorage.setItem('adminToken', input); showMainSystem(); } 
-            else { errorMsg.style.display = 'block'; document.getElementById('passwordInput').value = ''; }
-        } catch (error) { alert('連線失敗，請檢查網路'); } 
-        finally { btn.innerText = '登入'; btn.disabled = false; }
+            const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': input }, body: JSON.stringify({ action: 'login' }) });
+            if (res.ok) { sessionStorage.setItem('adminToken', input); showMainSystem(); } 
+            else { document.getElementById('errorMsg').style.display = 'block'; }
+        } catch (e) { alert('連線失敗'); } finally { btn.innerText = '登入'; btn.disabled = false; }
     }
 
     function handleEnter(e) { if (e.key === 'Enter') checkPassword(); }
@@ -201,42 +235,130 @@
     function getAuthHeaders() { return { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }; }
 
     async function loadData() {
-        tableBody.innerHTML = '<tr><td colspan="15" style="text-align:center;">載入中... ☁️</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="16" style="text-align:center;">載入中... ☁️</td></tr>';
+        const res = await fetch(API_URL); inventoryData = await res.json();
+        renderTable(); renderDashboard(); checkAudits();
+    }
+
+    // 💡 智能派單邏輯
+    async function runSmartAssignment() {
+        const regInput = document.getElementById('regNames').value.trim();
+        const ptInput = document.getElementById('ptNames').value.trim();
+        const regGroupsCount = parseInt(document.getElementById('regGroups').value) || 1;
+        const ptGroupsCount = parseInt(document.getElementById('ptGroups').value) || 1;
+
+        let groups = [];
+        
+        if(regInput) {
+            let names = regInput.split(/[\/,\s]+/).filter(n => n.trim() !== '');
+            names.sort(() => Math.random() - 0.5); 
+            let chunks = Array.from({length: regGroupsCount}, () => []);
+            names.forEach((n, i) => chunks[i % regGroupsCount].push(n));
+            chunks.forEach((chunk, i) => {
+                if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 2.5, currentLoad: 0 });
+            });
+        }
+        
+        if(ptInput) {
+            let names = ptInput.split(/[\/,\s]+/).filter(n => n.trim() !== '');
+            names.sort(() => Math.random() - 0.5); 
+            let chunks = Array.from({length: ptGroupsCount}, () => []);
+            names.forEach((n, i) => chunks[i % ptGroupsCount].push(n));
+            chunks.forEach((chunk, i) => {
+                if(chunk.length > 0) groups.push({ name: `PT第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 1, currentLoad: 0 });
+            });
+        }
+
+        if(groups.length === 0) return alert("請輸入名單");
+
+        let assignPayload = [];
+        let itemsToAssign = [...inventoryData].sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0));
+        
+        itemsToAssign.forEach(item => {
+            groups.sort((a,b) => (a.currentLoad / a.weight) - (b.currentLoad / b.weight));
+            let target = groups[0];
+            target.currentLoad += (item.quantityOnsite || 0.1);
+            item.assignedGroup = target.name;
+            assignPayload.push({ id: item.id, assignedGroup: target.name });
+        });
+
+        const btn = document.getElementById('assignBtn'); btn.innerText = '分配中...'; btn.disabled = true;
         try {
-            const res = await fetch(API_URL); inventoryData = await res.json();
-            renderTable(); renderDashboard(); 
-            document.getElementById('selectAll').checked = false; updateBatchDeleteBtn();
-        } catch (error) { tableBody.innerHTML = '<tr><td colspan="15" style="text-align:center;color:red;">連線失敗</td></tr>'; }
+            await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'assignGroups', items: assignPayload }) });
+            alert('✅ 智能派單完成！請請員工登入盤點系統查看任務。'); await loadData();
+        } catch(e) { alert('派單失敗'); } finally { btn.innerText = '🚀 執行智能打亂派單'; btn.disabled = false; }
+    }
+
+    function checkAudits() {
+        const pendingAudits = inventoryData.filter(i => i.auditOnsite !== null && i.auditOnsite !== undefined);
+        const btn = document.getElementById('auditAlertBtn');
+        if (pendingAudits.length > 0) {
+            btn.style.display = 'inline-block'; btn.innerText = `🔔 盤點待審核 (${pendingAudits.length})`; renderAuditModal(pendingAudits);
+        } else { btn.style.display = 'none'; closeAuditModal(); }
+    }
+
+    function openAuditModal() { document.getElementById('auditModal').style.display = 'block'; }
+    function closeAuditModal() { document.getElementById('auditModal').style.display = 'none'; }
+
+    function renderAuditModal(audits) {
+        const tbody = document.getElementById('auditTableBody'); tbody.innerHTML = '';
+        audits.forEach(item => {
+            const oldQ = item.quantityOnsite || 0; const newQ = item.auditOnsite; const diff = newQ - oldQ;
+            const diffHtml = diff === 0 ? `<span style="color:#7f8c8d;">無差異</span>` : (diff > 0 ? `<span class="diff-green">+${diff}</span>` : `<span class="diff-red">${diff}</span>`);
+            tbody.innerHTML += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px 0;"><span style="background:#f4ecf7; color:#8e44ad; padding:2px 6px; border-radius:4px; font-size:0.85rem;">${item.assignedGroup || '未指派'}</span></td>
+                    <td><strong>${item.productId}</strong><br><span style="color:#555;font-size:0.9rem;">${item.productName}</span></td>
+                    <td style="text-align:center; font-size:1.2rem;">${oldQ}</td>
+                    <td style="text-align:center; font-size:1.2rem; color:var(--secondary-color); font-weight:bold;">${newQ}</td>
+                    <td style="text-align:center;">${diffHtml}</td>
+                    <td style="text-align:center;">
+                        <button class="btn" style="background:#27ae60; padding:5px 10px;" onclick="resolveAudit(${item.id}, true, ${newQ})">✅ 覆蓋</button>
+                        <button class="btn btn-danger" style="padding:5px 10px; margin-left:5px;" onclick="resolveAudit(${item.id}, false, null)">❌ 退回</button>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    async function resolveAudit(id, isApprove, newValue) {
+        const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
+        let item = { ...inventoryData[itemIndex] };
+        if (isApprove) {
+            item.quantityOnsite = newValue;
+            item.totalPrice = item.price * ((item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0));
+        }
+        item.auditOnsite = null;
+        try {
+            await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
+            inventoryData[itemIndex] = item; renderTable(); renderDashboard(); checkAudits();
+        } catch(e) { alert("處理失敗"); }
     }
 
     function renderTable() {
         tableBody.innerHTML = '';
-        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="15" class="empty-state">目前為空</td></tr>';
+        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="16" class="empty-state">目前為空</td></tr>';
         
         inventoryData.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.setAttribute('data-id', item.id);
-            const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;background:#eee;font-size:12px;">無圖片</div>`;
+            const tr = document.createElement('tr'); tr.setAttribute('data-id', item.id);
+            const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;background:#eee;font-size:12px;">無</div>`;
             const fm = n => '$' + n.toLocaleString();
-            
-            const qTotal = (item.quantityOnsite || 0) + (item.quantity || 0) + (item.borrowZhongxiao || 0) + (item.borrowApon || 0) + (item.borrowOther || 0);
-            
+            const qTotal = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0);
+            const onsiteStyle = (item.auditOnsite !== null && item.auditOnsite !== undefined) ? 'background-color:#fadbd8;' : '';
+
             tr.innerHTML = `
-                <td class="drag-handle" title="按住拖曳排序">☰</td>
-                <td style="text-align: center;"><input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()"></td>
-                <td>
-                    <label class="photo-upload-label" title="點擊更換照片">
-                        ${photo}
-                        <div class="photo-overlay">更換</div>
-                        <input type="file" accept="image/*" style="display:none;" onchange="inlinePhotoUpload(event, ${item.id})">
-                    </label>
-                </td>
-                <td><strong><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productId" style="text-align:left;">${item.productId||''}</div></strong></td>
-                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productName" style="text-align:left;">${item.productName||''}</div></td>
-                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="vendor" style="text-align:left;">${item.vendor||''}</div></td>
+                <td class="drag-handle">☰</td>
+                <td style="text-align:center;"><input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()"></td>
+                <td><label class="photo-upload-label">${photo}<div class="photo-overlay">更換</div><input type="file" accept="image/*" style="display:none;" onchange="inlinePhotoUpload(event, ${item.id})"></label></td>
+                <td><strong><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productId">${item.productId||''}</div></strong></td>
+                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productName">${item.productName||''}</div></td>
                 
+                <!-- 負責組別欄位 -->
+                <td style="color:#8e44ad; font-weight:bold; font-size:0.9rem;"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="assignedGroup">${item.assignedGroup||''}</div></td>
+                
+                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="vendor">${item.vendor||''}</div></td>
                 <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="price">${item.price||0}</div></td>
-                <td class="qty-hl"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantityOnsite">${item.quantityOnsite || 0}</div></td>
+                
+                <td class="qty-hl" style="${onsiteStyle}"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantityOnsite">${item.quantityOnsite || 0}</div></td>
                 <td class="qty-hl"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantity">${item.quantity || 0}</div></td>
                 
                 <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowZhongxiao">${item.borrowZhongxiao || 0}</div></td>
@@ -245,32 +367,20 @@
                 
                 <td class="qty-total" id="totalQty-${item.id}">${qTotal}</td>
                 <td><strong id="totalPrice-${item.id}">${fm((item.price||0)*qTotal)}</strong></td>
-                <td><div class="action-buttons"><button class="btn btn-edit" onclick="startEdit(${item.id})">詳細</button><button class="btn btn-danger" onclick="deleteItem(${item.id})">刪除</button></div></td>`;
+                <td><div class="action-buttons"><button class="btn btn-edit" onclick="startEdit(${item.id})">編輯</button><button class="btn btn-danger" onclick="deleteItem(${item.id})">刪除</button></div></td>`;
             tableBody.appendChild(tr);
         });
-
-        initSortable();
-        initInlineEdit(); 
+        initSortable(); initInlineEdit(); 
     }
 
-    // 💡 匯出時加入「系統ID」，作為後續更新的精準比對鑰匙
     function exportCSV() {
         if (inventoryData.length === 0) { alert("沒有資料可以匯出！"); return; }
-        const csvData = inventoryData.map(item => ({
-            "系統ID": item.id || "",
-            "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "",
-            "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "",
-            "單價": item.price || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0,
-            "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0,
-            "照片資料": item.photo || "" 
-        }));
+        const csvData = inventoryData.map(item => ({ "系統ID": item.id || "", "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "", "負責組別": item.assignedGroup || "", "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "", "單價": item.price || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0, "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0, "照片資料": item.photo || "" }));
         const csvContent = "\uFEFF" + Papa.unparse(csvData, { header: true });
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
-        const today = new Date();
-        const dateStr = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
-        link.setAttribute("href", URL.createObjectURL(blob));
-        link.setAttribute("download", `庫存與外借清單_${dateStr}.csv`);
+        const today = new Date(); const dateStr = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+        link.setAttribute("href", URL.createObjectURL(blob)); link.setAttribute("download", `庫存與外借清單_${dateStr}.csv`);
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
@@ -283,41 +393,22 @@
     }
 
     async function inlineSave(cellElement) {
-        const newValue = cellElement.innerText.trim();
-        const originalValue = cellElement.dataset.originalValue;
+        const newValue = cellElement.innerText.trim(); const originalValue = cellElement.dataset.originalValue;
         if (newValue === originalValue) return;
-
-        const id = parseInt(cellElement.dataset.id);
-        const field = cellElement.dataset.field;
-        const itemIndex = inventoryData.findIndex(i => i.id === id);
-        if (itemIndex === -1) return;
-        
+        const id = parseInt(cellElement.dataset.id); const field = cellElement.dataset.field;
+        const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
         let item = { ...inventoryData[itemIndex] };
-
         if (['price', 'quantityOnsite', 'quantity', 'borrowZhongxiao', 'borrowApon', 'borrowOther'].includes(field)) {
-            let num = parseFloat(newValue) || 0;
-            item[field] = num;
-            cellElement.innerText = num; 
-            
+            let num = parseFloat(newValue) || 0; item[field] = num; cellElement.innerText = num; 
             const totalQ = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0);
             item.totalPrice = item.price * totalQ;
-            document.getElementById(`totalQty-${id}`).innerText = totalQ;
-            document.getElementById(`totalPrice-${id}`).innerText = '$' + item.totalPrice.toLocaleString();
-        } else {
-            item[field] = newValue;
-        }
-
+            document.getElementById(`totalQty-${id}`).innerText = totalQ; document.getElementById(`totalPrice-${id}`).innerText = '$' + item.totalPrice.toLocaleString();
+        } else { item[field] = newValue; }
         cellElement.style.backgroundColor = '#fcf3cf';
         try {
-            const response = await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
-            if (!response.ok) throw new Error();
-            inventoryData[itemIndex] = item;
-            cellElement.style.backgroundColor = '#d5f5e3';
-            setTimeout(() => cellElement.style.backgroundColor = '', 1000);
-            renderDashboard(); 
-        } catch (err) {
-            alert('儲存失敗'); cellElement.innerText = originalValue; cellElement.style.backgroundColor = '#fadbd8'; 
-        }
+            await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
+            inventoryData[itemIndex] = item; cellElement.style.backgroundColor = '#d5f5e3'; setTimeout(() => cellElement.style.backgroundColor = '', 1000); renderDashboard(); 
+        } catch (err) { alert('儲存失敗'); cellElement.innerText = originalValue; cellElement.style.backgroundColor = '#fadbd8'; }
     }
 
     function inlinePhotoUpload(event, id) {
@@ -327,10 +418,7 @@
         const reader = new FileReader();
         reader.onload = async (e) => {
             item.photo = e.target.result; 
-            try {
-                await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
-                inventoryData[itemIndex] = item; renderTable(); 
-            } catch (err) { alert('照片上傳失敗'); }
+            try { await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) }); inventoryData[itemIndex] = item; renderTable(); } catch (err) { alert('照片上傳失敗'); }
         };
         reader.readAsDataURL(file);
     }
@@ -340,31 +428,21 @@
         sortableInstance = new Sortable(tableBody, {
             handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost',
             onEnd: async function () {
-                const rows = tableBody.querySelectorAll('tr[data-id]');
-                const newOrderList = [];
+                const rows = tableBody.querySelectorAll('tr[data-id]'); const newOrderList = [];
                 rows.forEach((row, index) => { newOrderList.push({ id: parseInt(row.getAttribute('data-id')), sortOrder: index + 1 }); });
-
-                const saveBtn = document.getElementById('saveOrderBtn'); saveBtn.style.display = 'inline-block';
-                try {
-                    await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'reorder', items: newOrderList }) });
-                } catch(e) { alert("儲存排序失敗"); } 
-                finally { saveBtn.style.display = 'none'; fetch(API_URL).then(r=>r.json()).then(d => inventoryData = d); }
+                try { await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'reorder', items: newOrderList }) }); } catch(e) { alert("儲存排序失敗"); } finally { fetch(API_URL).then(r=>r.json()).then(d => inventoryData = d); }
             }
         });
     }
 
     function renderDashboard() {
         if (inventoryData.length === 0) { document.getElementById('dashboardCard').style.display = 'none'; return; }
-        document.getElementById('dashboardCard').style.display = 'block';
-        let totalValue = 0; let totalQty = 0; let vendorCounts = {};
+        document.getElementById('dashboardCard').style.display = 'block'; let totalValue = 0; let totalQty = 0; let vendorCounts = {};
         inventoryData.forEach(item => {
             const sumQty = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0); 
-            totalValue += (item.price || 0) * sumQty; totalQty += sumQty;
-            const vendor = item.vendor || '未登記廠商'; vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
+            totalValue += (item.price || 0) * sumQty; totalQty += sumQty; const vendor = item.vendor || '未登記廠商'; vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
         });
-        document.getElementById('statTotalValue').innerText = '$' + totalValue.toLocaleString();
-        document.getElementById('statTotalSKU').innerText = inventoryData.length.toLocaleString();
-        document.getElementById('statTotalQty').innerText = totalQty.toLocaleString();
+        document.getElementById('statTotalValue').innerText = '$' + totalValue.toLocaleString(); document.getElementById('statTotalSKU').innerText = inventoryData.length.toLocaleString(); document.getElementById('statTotalQty').innerText = totalQty.toLocaleString();
         const ctxVendor = document.getElementById('vendorChart').getContext('2d');
         if (vendorChartInstance) vendorChartInstance.destroy(); 
         vendorChartInstance = new Chart(ctxVendor, { type: 'doughnut', data: { labels: Object.keys(vendorCounts), datasets: [{ data: Object.values(vendorCounts), backgroundColor: ['#3498db', '#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e', '#e67e22'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
@@ -376,132 +454,45 @@
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        const photoInput = document.getElementById('photo');
-        const pPrice = parseFloat(document.getElementById('price').value) || 0;
-        const qOnsite = parseInt(document.getElementById('quantityOnsite').value) || 0;
-        const qWarehouse = parseInt(document.getElementById('quantity').value) || 0;
-        const qBZ = parseInt(document.getElementById('borrowZhongxiao').value) || 0;
-        const qBA = parseInt(document.getElementById('borrowApon').value) || 0;
-        const qBO = parseInt(document.getElementById('borrowOther').value) || 0;
-        const totalQ = qOnsite + qWarehouse + qBZ + qBA + qBO;
-
         const itemData = {
-            id: editingId ? editingId : Date.now(),
-            orderId: document.getElementById('orderId').value, productId: document.getElementById('productId').value,
-            productName: document.getElementById('productName').value, spec: document.getElementById('spec').value,
-            vendor: document.getElementById('vendor').value, purpose: document.getElementById('purpose').value,
-            location: document.getElementById('location').value, price: pPrice,
-            quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: pPrice * totalQ
+            id: editingId ? editingId : Date.now(), orderId: document.getElementById('orderId').value, productId: document.getElementById('productId').value, productName: document.getElementById('productName').value, spec: document.getElementById('spec').value, vendor: document.getElementById('vendor').value, purpose: document.getElementById('purpose').value, location: document.getElementById('location').value, price: parseFloat(document.getElementById('price').value) || 0,
+            quantityOnsite: parseInt(document.getElementById('quantityOnsite').value) || 0, quantity: parseInt(document.getElementById('quantity').value) || 0, borrowZhongxiao: parseInt(document.getElementById('borrowZhongxiao').value) || 0, borrowApon: parseInt(document.getElementById('borrowApon').value) || 0, borrowOther: parseInt(document.getElementById('borrowOther').value) || 0, assignedGroup: ''
         };
+        itemData.totalPrice = itemData.price * (itemData.quantityOnsite + itemData.quantity + itemData.borrowZhongxiao + itemData.borrowApon + itemData.borrowOther);
+        const photoInput = document.getElementById('photo');
         if (photoInput.files && photoInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = e => { itemData.photo = e.target.result; saveToServer(itemData); };
-            reader.readAsDataURL(photoInput.files[0]);
+            const reader = new FileReader(); reader.onload = e => { itemData.photo = e.target.result; saveToServer(itemData); }; reader.readAsDataURL(photoInput.files[0]);
         } else { itemData.photo = editingId ? currentOriginalPhoto : ''; saveToServer(itemData); }
     });
 
-    async function saveToServer(itemData) {
-        try {
-            await fetch(API_URL, { method: editingId ? 'PUT' : 'POST', headers: getAuthHeaders(), body: JSON.stringify(itemData) });
-            cancelEdit(); await loadData();
-        } catch (err) { alert('儲存失敗'); }
-    }
-
-    async function deleteItem(id) {
-        if(confirm('確定刪除？')) {
-            await fetch(`${API_URL}?id=${id}`, { method: 'DELETE', headers: { 'X-Admin-Password': sessionStorage.getItem('adminToken') } });
-            if (id === editingId) cancelEdit(); await loadData(); 
-        }
-    }
-
-    function startEdit(id) {
-        const item = inventoryData.find(i => i.id === id); if(!item) return;
-        editingId = id; currentOriginalPhoto = item.photo || '';
-        document.getElementById('orderId').value = item.orderId || ''; document.getElementById('productId').value = item.productId || '';
-        document.getElementById('productName').value = item.productName || ''; document.getElementById('spec').value = item.spec || '';
-        document.getElementById('vendor').value = item.vendor || ''; document.getElementById('purpose').value = item.purpose || '';
-        document.getElementById('location').value = item.location || ''; document.getElementById('price').value = item.price || 0;
-        document.getElementById('quantityOnsite').value = item.quantityOnsite || 0; document.getElementById('quantity').value = item.quantity || 0;
-        document.getElementById('borrowZhongxiao').value = item.borrowZhongxiao || 0; document.getElementById('borrowApon').value = item.borrowApon || 0; document.getElementById('borrowOther').value = item.borrowOther || 0;
-        document.getElementById('formCard').classList.add('edit-mode'); document.getElementById('formTitle').innerText = `✏️ 編輯資料`;
-        document.getElementById('cancelEditBtn').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    async function saveToServer(itemData) { try { await fetch(API_URL, { method: editingId ? 'PUT' : 'POST', headers: getAuthHeaders(), body: JSON.stringify(itemData) }); cancelEdit(); await loadData(); } catch (err) { alert('儲存失敗'); } }
+    async function deleteItem(id) { if(confirm('確定刪除？')) { await fetch(`${API_URL}?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() }); if (id === editingId) cancelEdit(); await loadData(); } }
+    function startEdit(id) { const item = inventoryData.find(i => i.id === id); if(!item) return; editingId = id; currentOriginalPhoto = item.photo || ''; document.getElementById('orderId').value = item.orderId || ''; document.getElementById('productId').value = item.productId || ''; document.getElementById('productName').value = item.productName || ''; document.getElementById('spec').value = item.spec || ''; document.getElementById('vendor').value = item.vendor || ''; document.getElementById('purpose').value = item.purpose || ''; document.getElementById('location').value = item.location || ''; document.getElementById('price').value = item.price || 0; document.getElementById('quantityOnsite').value = item.quantityOnsite || 0; document.getElementById('quantity').value = item.quantity || 0; document.getElementById('borrowZhongxiao').value = item.borrowZhongxiao || 0; document.getElementById('borrowApon').value = item.borrowApon || 0; document.getElementById('borrowOther').value = item.borrowOther || 0; document.getElementById('formCard').classList.add('edit-mode'); document.getElementById('formTitle').innerText = `✏️ 編輯資料`; document.getElementById('cancelEditBtn').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' }); }
     function cancelEdit() { editingId = null; currentOriginalPhoto = ''; form.reset(); document.getElementById('formCard').classList.remove('edit-mode'); document.getElementById('formTitle').innerText = '新增進貨/庫存'; document.getElementById('cancelEditBtn').style.display = 'none'; }
     function toggleSelectAll() { const s=document.getElementById('selectAll'); document.querySelectorAll('.row-checkbox').forEach(cb=>cb.checked=s.checked); updateBatchDeleteBtn(); }
     function updateBatchDeleteBtn() { const c=document.querySelectorAll('.row-checkbox:checked').length; const btn=document.getElementById('batchDeleteBtn'); btn.style.display=c>0?'inline-block':'none'; if(c>0)btn.innerText=`🗑️ 批量刪除 (${c})`; }
     async function batchDelete() { const cb=document.querySelectorAll('.row-checkbox:checked'); const ids=Array.from(cb).map(c=>c.value); if(ids.length===0)return; if(confirm(`確定刪除 ${ids.length} 筆資料嗎？`)){ document.getElementById('batchDeleteBtn').innerText='刪除中...'; await Promise.all(ids.map(id=>fetch(`${API_URL}?id=${id}`,{method:'DELETE',headers:getAuthHeaders()}))); await loadData(); } }
     
-    function downloadTemplate() {
-        const headers = ["系統ID", "訂購編號", "產品編號", "品名", "規格", "廠商", "用途", "存放位置", "單價", "現場庫存", "倉庫庫存", "忠孝外借", "艾朋外借", "其他外借", "照片資料"];
-        const csvContent = "\uFEFF" + headers.join(",") + "\n";
-        const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.setAttribute("download", "庫存導入範本.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    }
-
-    // 💡 智慧匯入邏輯 (比對覆蓋與新增)
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
         Papa.parse(file, {
             header: true, skipEmptyLines: true,
             complete: async function(results) {
                 if (results.data.length === 0) return alert("檔案內沒有資料！");
-                
-                let updateCount = 0;
-                let insertCount = 0;
-                const upsertData = [];
-
+                let updateCount = 0; let insertCount = 0; const upsertData = [];
                 results.data.forEach((row, index) => {
-                    // 防呆：如果編號跟品名都是空的，跳過不處理
                     if (!row['產品編號'] && !row['品名']) return;
-
-                    const price = parseFloat(row['單價']) || 0;
-                    const qOnsite = parseInt(row['現場庫存']) || 0;
-                    const qWarehouse = parseInt(row['倉庫庫存']) || parseInt(row['數量']) || 0; 
-                    const qBZ = parseInt(row['忠孝外借']) || 0; const qBA = parseInt(row['艾朋外借']) || 0; const qBO = parseInt(row['其他外借']) || 0;
+                    const price = parseFloat(row['單價']) || 0; const qOnsite = parseInt(row['現場庫存']) || 0; const qWarehouse = parseInt(row['倉庫庫存']) || parseInt(row['數量']) || 0; const qBZ = parseInt(row['忠孝外借']) || 0; const qBA = parseInt(row['艾朋外借']) || 0; const qBO = parseInt(row['其他外借']) || 0;
                     const tQty = qOnsite + qWarehouse + qBZ + qBA + qBO;
-                    const csvPhoto = row['照片資料'] || '';
-
-                    let isUpdate = false;
-                    let targetId = null;
-                    let originalPhoto = '';
-
-                    // 1. 優先比對「系統ID」
-                    if (row['系統ID']) {
-                        const existing = inventoryData.find(i => String(i.id) === String(row['系統ID']));
-                        if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; }
-                    }
-                    
-                    // 2. 如果沒有系統ID，退而求其次比對「產品編號 (SKU)」
-                    if (!isUpdate && row['產品編號']) {
-                        const existing = inventoryData.find(i => String(i.productId) === String(row['產品編號']));
-                        if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; }
-                    }
-
-                    if (isUpdate) { updateCount++; } 
-                    else { insertCount++; targetId = Date.now() + index; }
-
-                    upsertData.push({
-                        isUpdate: isUpdate,
-                        id: targetId, 
-                        photo: csvPhoto || originalPhoto, // 💡 智慧保留：如果Excel清空了照片，會自動保留系統原有的照片
-                        orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', 
-                        spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', 
-                        price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: price * tQty 
-                    });
+                    let isUpdate = false; let targetId = null; let originalPhoto = ''; let originalGroup = ''; let originalAudit = null;
+                    if (row['系統ID']) { const existing = inventoryData.find(i => String(i.id) === String(row['系統ID'])); if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; originalGroup = existing.assignedGroup || ''; originalAudit = existing.auditOnsite; } }
+                    if (!isUpdate && row['產品編號']) { const existing = inventoryData.find(i => String(i.productId) === String(row['產品編號'])); if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; originalGroup = existing.assignedGroup || ''; originalAudit = existing.auditOnsite; } }
+                    if (isUpdate) { updateCount++; } else { insertCount++; targetId = Date.now() + index; }
+                    upsertData.push({ isUpdate: isUpdate, id: targetId, photo: row['照片資料'] || originalPhoto, orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: price * tQty, assignedGroup: row['負責組別'] || originalGroup, auditOnsite: originalAudit });
                 });
-
                 if (upsertData.length === 0) return alert("沒有找到有效的資料列！");
-
-                // 💡 匯入前的防呆確認視窗
-                const confirmMsg = `🔍 系統比對完畢！\n\n將執行以下操作：\n🔄 覆蓋更新舊資料：${updateCount} 筆\n✨ 建立全新資料：${insertCount} 筆\n\n是否確定執行導入？`;
-                if (!confirm(confirmMsg)) { e.target.value = ''; return; }
-
-                try {
-                    tableBody.innerHTML = `<tr><td colspan="15" style="text-align:center;">正在處理 ${upsertData.length} 筆資料...</td></tr>`;
-                    // 發送 batchUpsert 指令給 Cloudflare
-                    await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'batchUpsert', items: upsertData }) });
-                    alert(`✅ 成功完成 ${upsertData.length} 筆資料處理！`); await loadData();
-                } catch (error) { alert("匯入發生錯誤，可能密碼錯誤或未授權。"); await loadData(); } 
-                e.target.value = ''; 
+                if (!confirm(`🔍 將執行以下操作：\n🔄 覆蓋更新：${updateCount} 筆\n✨ 全新建立：${insertCount} 筆\n\n確定執行導入？`)) { e.target.value = ''; return; }
+                try { tableBody.innerHTML = `<tr><td colspan="16" style="text-align:center;">處理中...</td></tr>`; await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'batchUpsert', items: upsertData }) }); alert(`✅ 成功導入 ${upsertData.length} 筆資料！`); await loadData(); } catch (error) { alert("發生錯誤。"); await loadData(); } e.target.value = ''; 
             }
         });
     });
