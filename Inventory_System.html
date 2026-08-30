@@ -270,7 +270,8 @@
             </div>
         </form>
     </div>
-   <div class="card">
+
+    <div class="card">
         <div class="header-actions">
             <h2 class="card-title">📦 目前庫存總覽</h2>
             <div class="header-actions-right">
@@ -355,7 +356,9 @@
             chunks.forEach((chunk, i) => {
                 if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 5, currentLoad: 0, itemCount: 0 });
             });
-if(ptInput) {
+        }
+        
+        if(ptInput) {
             let names = ptInput.split(/[\/,\s]+/).filter(n => n.trim() !== '');
             names.sort(() => Math.random() - 0.5); 
             let chunks = Array.from({length: ptGroupsCount}, () => []);
@@ -620,7 +623,7 @@ if(ptInput) {
         });
     }
 
-   function renderDashboard() {
+    function renderDashboard() {
         if (inventoryData.length === 0) { document.getElementById('dashboardCard').style.display = 'none'; return; }
         document.getElementById('dashboardCard').style.display = 'block'; let totalValue = 0; let totalQty = 0; let vendorCounts = {};
         inventoryData.forEach(item => {
