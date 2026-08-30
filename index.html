@@ -203,7 +203,6 @@
         };
 
         tempArray.sort((a, b) => {
-            // 💡 排序計算包含所有外借
             const totalQtyA = (a.quantity||0) + (a.quantityOnsite||0) + (a.borrowZhongxiao||0) + (a.borrowApon||0) + (a.borrowOther||0);
             const totalQtyB = (b.quantity||0) + (b.quantityOnsite||0) + (b.borrowZhongxiao||0) + (b.borrowApon||0) + (b.borrowOther||0);
 
@@ -254,11 +253,12 @@
             const formatMoney = (num) => '$' + (num || 0).toLocaleString();
             const photoHtml = item.photo ? `<img src="${item.photo}" class="card-img" onclick="openModal('${item.photo}', '${item.productName || '未命名產品'}')">` : `<span class="no-img-text">無圖片</span>`;
 
+            // 💡 加入訂購編號的標籤顯示 (暖黃色底)
+            const orderHtml = item.orderId ? `<div><span class="info-tag" style="background:#fcf3cf; color:#d4ac0d;">訂購</span>${item.orderId}</div>` : '';
             const purposeHtml = item.purpose ? `<div><span class="info-tag">用途</span>${item.purpose}</div>` : '';
             const specHtml = item.spec ? `<div><span class="info-tag" style="background:#eafaf1; color:#27ae60;">規格</span>${item.spec}</div>` : '';
-            let infoListHtml = (purposeHtml + specHtml) || '';
+            let infoListHtml = (orderHtml + purposeHtml + specHtml) || '';
 
-            // 💡 解析外借資料，如果有外借就顯示紫色標籤
             const qOnsite = item.quantityOnsite || 0;
             const qWarehouse = item.quantity || 0;
             const qBZ = item.borrowZhongxiao || 0;
@@ -285,7 +285,6 @@
             }
             locHtml += '</div>';
 
-            // 💡 卡片左上角的角標加上「借」
             const cardHtml = `
                 <div class="card">
                     <div class="card-img-wrapper">
