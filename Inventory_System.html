@@ -78,7 +78,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* 盤點模式下拉選單 */
         .mode-select { padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.85rem; font-weight: bold; cursor: pointer; outline: none; }
         .mode-AI { color: #2980b9; background: #ebf5fb; border-color: #a9cce3; }
         .mode-MANUAL { color: #d35400; background: #fdf2e9; border-color: #f5cba7; }
@@ -157,7 +156,7 @@
 
     <div class="card">
         <h2 class="card-title" style="margin-bottom: 20px;">🎲 智能盤點派單</h2>
-        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-10px;">系統將根據「現場數量」與「權重 (正職 5 : PT 1)」自動打亂，並只針對設定為「🤖 AI 自動」的品項公平分配。</p>
+        <p style="color:#7f8c8d; font-size:0.95rem; margin-top:-10px;">系統將確保「品項數與數量」綜合平衡，並遵守設定的<strong style="color:#e74c3c;">權重比例 (正職 5 : PT 1)</strong> 進行公平分配。</p>
         <div class="assign-block">
             <div class="assign-grid">
                 <div>
@@ -187,7 +186,6 @@
                 <div class="form-group"><label>品名</label><input type="text" id="productName" required></div>
                 <div class="form-group"><label>規格</label><input type="text" id="spec"></div>
                 
-                <!-- 盤點模式選擇 -->
                 <div class="form-group">
                     <label>盤點模式</label>
                     <select id="auditMode">
@@ -271,7 +269,7 @@
         renderTable(); renderDashboard(); checkAudits();
     }
 
-    // 💡 智能派單邏輯：更新權重為 正職5 : PT1
+    // 💡 演算法大升級：優先平衡品項數，同時兼顧數量，確保符合 5:1 比例
     async function startSmartAssignmentAnimation() {
         const regInput = document.getElementById('regNames').value.trim();
         const ptInput = document.getElementById('ptNames').value.trim();
@@ -286,8 +284,8 @@
             let chunks = Array.from({length: regGroupsCount}, () => []);
             names.forEach((n, i) => chunks[i % regGroupsCount].push(n));
             chunks.forEach((chunk, i) => {
-                // 💡 權重修改：正職權重 5
-                if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 5, currentLoad: 0 });
+                // 💡 正職權重設定為 5
+                if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 5, currentLoad: 0, itemCount: 0 });
             });
         }
         
@@ -297,8 +295,8 @@
             let chunks = Array.from({length: ptGroupsCount}, () => []);
             names.forEach((n, i) => chunks[i % ptGroupsCount].push(n));
             chunks.forEach((chunk, i) => {
-                // PT 權重維持 1
-                if(chunk.length > 0) groups.push({ name: `PT第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 1, currentLoad: 0 });
+                // 💡 PT權重設定為 1
+                if(chunk.length > 0) groups.push({ name: `PT第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 1, currentLoad: 0, itemCount: 0 });
             });
         }
 
@@ -306,16 +304,29 @@
 
         let assignPayload = [];
         
-        // 只針對 auditMode === 'AI' 或是空值的項目做 AI 派單
         let itemsToAssign = inventoryData.filter(item => !item.auditMode || item.auditMode === 'AI')
                                          .sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0));
         
         if(itemsToAssign.length === 0) return alert("目前沒有設定為「🤖 AI 自動」的品項可以分配！");
 
         itemsToAssign.forEach(item => {
-            groups.sort((a,b) => (a.currentLoad / a.weight) - (b.currentLoad / b.weight));
+            // 💡 改良版發牌邏輯：當疲勞度相近時，用「已分配的品項數」來確保 5:1 比例
+            groups.sort((a,b) => {
+                let scoreA = a.currentLoad / a.weight;
+                let scoreB = b.currentLoad / b.weight;
+                if (Math.abs(scoreA - scoreB) < 0.001) {
+                    return (a.itemCount / a.weight) - (b.itemCount / b.weight);
+                }
+                return scoreA - scoreB;
+            });
+
             let target = groups[0];
-            target.currentLoad += (item.quantityOnsite || 0.1);
+            // 💡 定義疲勞指數：每分到 1 個品項直接 +1000 點疲勞，每多 1 個數量再 +1 點
+            // 這能確保系統「絕不會」為了補足數量，而把幾百個小東西全塞給同一個人！
+            let itemEffort = 1000 + (item.quantityOnsite || 0); 
+            
+            target.currentLoad += itemEffort;
+            target.itemCount = (target.itemCount || 0) + 1;
             assignPayload.push({ id: item.id, assignedGroup: target.name });
         });
 
@@ -332,8 +343,8 @@
         const stages = [
             "📥 讀取並過濾手動與免盤點品項...",
             "🔀 打亂正職與 PT 人員...",
-            "⚖️ 計算商品現場庫存權重...",
-            "🧠 AI 核心平衡演算法啟動..."
+            "⚖️ 計算品項數與庫存綜合權重...",
+            "🧠 AI 綜合防呆平衡演算法啟動..."
         ];
 
         let stageIdx = 0;
@@ -372,7 +383,7 @@
                             
                             setTimeout(() => {
                                 modal.style.display = 'none';
-                                alert(`✅ 智能派單完成！共指派了 ${totalItems} 個項目。\n(鎖定手動與免盤點的項目已保留)`);
+                                alert(`✅ 智能派單完成！共完美分配了 ${totalItems} 個項目。\n(鎖定手動與免盤點的項目已保留)`);
                                 document.getElementById('assignBtn').disabled = false;
                                 statusText.style.color = "#2c3e50"; 
                                 loadData();
