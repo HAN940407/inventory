@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>現場盤點系統 (員工專用)</title>
+    <style>
+        :root { --primary-color: #2c3e50; --secondary-color: #3498db; --bg-color: #f4f6f9; }
+        body { font-family: sans-serif; background-color: var(--bg-color); margin: 0; padding: 15px; color: #333; }
+        #loginScreen, #groupSelectScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #34495e; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-box { background: white; padding: 30px; border-radius: 12px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .login-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 6px; font-size: 1.1rem; box-sizing: border-box; text-align: center; letter-spacing: 2px; }
+        .btn { width: 100%; padding: 12px; background-color: var(--secondary-color); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
+        
+        #mainContainer { display: none; max-width: 600px; margin: 0 auto; padding-bottom: 50px;}
+        .header { text-align: center; margin-bottom: 20px; }
+        .search-input { width: 100%; padding: 12px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; box-sizing: border-box; margin-bottom: 20px;}
+        
+        .card { background: white; border-radius: 10px; padding: 15px; display: flex; gap: 15px; margin-bottom: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); align-items: center;}
+        .card-img { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; background: #eee; }
+        .card-info { flex-grow: 1; }
+        .sku { font-size: 0.8rem; color: #7f8c8d; }
+        .name { font-size: 1.1rem; font-weight: bold; color: var(--primary-color); margin: 3px 0; }
+        .loc { font-size: 0.85rem; color: #d35400; background: #fdf2e9; padding: 2px 6px; border-radius: 4px; display: inline-block;}
+        
+        .audit-input-group { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+        .audit-input { width: 70px; padding: 8px; border: 2px solid #bdc3c7; border-radius: 6px; font-size: 1.1rem; text-align: center; }
+        .audit-btn { padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap;}
+        .audit-btn.done { background: #95a5a6; cursor: default; }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen">
+    <div class="login-box">
+        <h2 style="color:#2c3e50; margin-top:0;">📱 現場盤點系統</h2>
+        <input type="password" id="passwordInput" class="login-input" placeholder="盤點授權碼">
+        <button class="btn" onclick="checkPassword()">登入驗證</button>
+        <p id="errorMsg" style="color:red; display:none; font-size:0.9rem; font-weight:bold;">密碼錯誤</p>
+    </div>
+</div>
+
+<!-- 💡 新增的選擇組別介面 -->
+<div id="groupSelectScreen" style="display:none;">
+    <div class="login-box">
+        <h2 style="color:#2c3e50; margin-top:0;">請選擇你的組別</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-10px; margin-bottom:20px;">系統將只顯示你負責的品項</p>
+        <select id="groupSelect" class="login-input" style="text-align:left; letter-spacing:normal;">
+            <option value="">請選擇...</option>
+        </select>
+        <button class="btn" onclick="startAudit()">進入盤點任務</button>
+    </div>
+</div>
+
+<div id="mainContainer">
+    <div class="header">
+        <h2 style="color:var(--primary-color); margin-bottom:5px;" id="headerTitle">📝 現場數量盲盤</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:0;">請點算現場實際數量後送出</p>
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋存放位置、品名、編號...">
+    </div>
+    <div id="listContainer"></div>
+</div>
+
+<script>
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    let inventoryData = [];
+    let selectedGroup = '';
+
+    async function checkPassword() {
+        const input = document.getElementById('passwordInput').value;
+        try {
+            const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': input }, body: JSON.stringify({ action: 'login_emp' }) });
+            if (res.ok) { sessionStorage.setItem('empToken', input); showGroupSelect(); } 
+            else { document.getElementById('errorMsg').style.display = 'block'; }
+        } catch (e) { alert("連線失敗"); }
+    }
+
+    // 💡 登入成功後，載入資料並整理出現有的組別清單
+    async function showGroupSelect() {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('groupSelectScreen').style.display = 'flex';
+        
+        try {
+            const res = await fetch(API_URL);
+            inventoryData = await res.json();
+            
+            // 抓出所有不重複的組別
+            const groups = [...new Set(inventoryData.map(item => (item.assignedGroup || '').trim()).filter(g => g !== ''))];
+            const select = document.getElementById('groupSelect');
+            
+            if (groups.length === 0) {
+                alert("目前沒有任何已指派的盤點任務！");
+            } else {
+                groups.forEach(g => {
+                    const option = document.createElement('option');
+                    option.value = g; option.text = g;
+                    select.appendChild(option);
+                });
+            }
+        } catch(e) {
+            alert("資料載入失敗");
+        }
+    }
+
+    function startAudit() {
+        const select = document.getElementById('groupSelect');
+        selectedGroup = select.value;
+        if (!selectedGroup) return alert("請先選擇組別！");
+        
+        document.getElementById('groupSelectScreen').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
+        document.getElementById('headerTitle').innerText = `📝 ${selectedGroup}`;
+        
+        renderList();
+    }
+
+    function renderList() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const list = document.getElementById('listContainer');
+        list.innerHTML = '';
+        
+        // 💡 核心：過濾出「該名員工所屬組別」的商品
+        const myItems = inventoryData.filter(item => (item.assignedGroup || '').trim() === selectedGroup);
+        
+        if (myItems.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color:#7f8c8d;">太棒了！此組別目前沒有待盤點項目。</p>';
+            return;
+        }
+
+        myItems.filter(item => {
+            const text = (item.productName + item.productId + item.location).toLowerCase();
+            return text.includes(query);
+        }).forEach(item => {
+            const isAudited = item.auditOnsite !== null && item.auditOnsite !== undefined;
+            const photo = item.photo ? `<img src="${item.photo}" class="card-img">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;">無</div>`;
+            const btnHtml = isAudited ? `<button class="audit-btn done" disabled>已送出</button>` : `<button class="audit-btn" id="btn-${item.id}" onclick="submitAudit(${item.id})">送出</button>`;
+            const inputHtml = isAudited ? `<input type="number" class="audit-input" value="${item.auditOnsite}" disabled>` : `<input type="number" class="audit-input" id="input-${item.id}" placeholder="數量" min="0">`;
+
+            list.innerHTML += `
+                <div class="card">
+                    ${photo}
+                    <div class="card-info">
+                        <div class="sku">${item.productId || '無編號'}</div>
+                        <div class="name">${item.productName || '未命名'}</div>
+                        <div class="loc">📍 ${item.location || '未指定位置'}</div>
+                        <div class="audit-input-group">
+                            ${inputHtml} ${btnHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderList);
+
+    async function submitAudit(id) {
+        const val = document.getElementById(`input-${id}`).value;
+        if (val === '') return alert("請輸入數量");
+        
+        const btn = document.getElementById(`btn-${id}`);
+        btn.innerText = "傳送中..."; btn.disabled = true;
+
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': sessionStorage.getItem('empToken') },
+                body: JSON.stringify({ action: 'submitAudit', id: id, auditOnsite: parseInt(val) })
+            });
+            if (res.ok) {
+                btn.innerText = "已送出"; btn.className = "audit-btn done";
+                document.getElementById(`input-${id}`).disabled = true;
+                const item = inventoryData.find(i => i.id === id);
+                if(item) item.auditOnsite = parseInt(val);
+            } else { throw new Error(); }
+        } catch(e) { alert("送出失敗"); btn.innerText = "送出"; btn.disabled = false; }
+    }
+
+    // 啟動流程：如果已經有 Token，直接跳過密碼輸入進入選組畫面
+    if (sessionStorage.getItem('empToken')) { showGroupSelect(); }
+</script>
+</body>
+</html>
