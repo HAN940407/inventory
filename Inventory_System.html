@@ -157,7 +157,7 @@
 
     <div class="card">
         <h2 class="card-title" style="margin-bottom: 20px;">🎲 智能盤點派單</h2>
-        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-10px;">系統將只會把設定為「🤖 AI 自動」的品項進行隨機打亂與分配，手動指派與免盤點的項目將被保留。</p>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-10px;">系統將根據「現場數量」與「權重 (正職 5 : PT 1)」自動打亂，並只針對設定為「🤖 AI 自動」的品項公平分配。</p>
         <div class="assign-block">
             <div class="assign-grid">
                 <div>
@@ -187,7 +187,7 @@
                 <div class="form-group"><label>品名</label><input type="text" id="productName" required></div>
                 <div class="form-group"><label>規格</label><input type="text" id="spec"></div>
                 
-                <!-- 新增：盤點模式選擇 -->
+                <!-- 盤點模式選擇 -->
                 <div class="form-group">
                     <label>盤點模式</label>
                     <select id="auditMode">
@@ -227,11 +227,8 @@
                     <tr>
                         <th style="width: 30px;">排序</th><th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                         <th>照片</th><th>產品編號</th><th>品名</th>
-                        
-                        <!-- 表頭加入 盤點模式 -->
                         <th>盤點模式</th>
                         <th style="color:#8e44ad;">負責組別</th>
-                        
                         <th>廠商</th><th>單價</th><th>現場</th><th>倉庫</th><th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他</th><th style="color:#e67e22;">總數</th><th>總價</th><th>操作</th>
                     </tr>
                 </thead>
@@ -274,7 +271,7 @@
         renderTable(); renderDashboard(); checkAudits();
     }
 
-    // 💡 智能派單邏輯：只針對 'AI' 模式的項目進行分配
+    // 💡 智能派單邏輯：更新權重為 正職5 : PT1
     async function startSmartAssignmentAnimation() {
         const regInput = document.getElementById('regNames').value.trim();
         const ptInput = document.getElementById('ptNames').value.trim();
@@ -289,7 +286,8 @@
             let chunks = Array.from({length: regGroupsCount}, () => []);
             names.forEach((n, i) => chunks[i % regGroupsCount].push(n));
             chunks.forEach((chunk, i) => {
-                if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 2.5, currentLoad: 0 });
+                // 💡 權重修改：正職權重 5
+                if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 5, currentLoad: 0 });
             });
         }
         
@@ -299,6 +297,7 @@
             let chunks = Array.from({length: ptGroupsCount}, () => []);
             names.forEach((n, i) => chunks[i % ptGroupsCount].push(n));
             chunks.forEach((chunk, i) => {
+                // PT 權重維持 1
                 if(chunk.length > 0) groups.push({ name: `PT第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 1, currentLoad: 0 });
             });
         }
@@ -434,13 +433,12 @@
         } catch(e) { alert("處理失敗"); }
     }
 
-    // 💡 即時切換盤點模式並儲存
     async function changeAuditMode(id, modeValue) {
         const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
         let item = { ...inventoryData[itemIndex] };
         item.auditMode = modeValue;
         const selectEl = document.getElementById(`modeSelect-${id}`);
-        selectEl.className = `mode-select mode-${modeValue}`; // 更新顏色
+        selectEl.className = `mode-select mode-${modeValue}`;
 
         try {
             await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
