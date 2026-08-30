@@ -82,6 +82,10 @@
         .mode-AI { color: #2980b9; background: #ebf5fb; border-color: #a9cce3; }
         .mode-MANUAL { color: #d35400; background: #fdf2e9; border-color: #f5cba7; }
         .mode-SKIP { color: #7f8c8d; background: #f2f3f4; border-color: #d5d8dc; }
+        
+        /* 💡 表頭排序按鈕的特效 */
+        .sortable-header { cursor: pointer; transition: 0.2s; }
+        .sortable-header:hover { background-color: #e5e8e8; color: #8e44ad; }
     </style>
 </head>
 <body>
@@ -226,7 +230,8 @@
                         <th style="width: 30px;">排序</th><th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                         <th>照片</th><th>產品編號</th><th>品名</th>
                         <th>盤點模式</th>
-                        <th style="color:#8e44ad;">負責組別</th>
+                        <!-- 💡 加上點擊排序功能，方便派單後檢查 -->
+                        <th style="color:#8e44ad; text-decoration:underline;" class="sortable-header" onclick="sortByAssignedGroup()" title="點擊依組別排序">負責組別 ↕</th>
                         <th>廠商</th><th>單價</th><th>現場</th><th>倉庫</th><th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他</th><th style="color:#e67e22;">總數</th><th>總價</th><th>操作</th>
                     </tr>
                 </thead>
@@ -244,6 +249,7 @@
     const form = document.getElementById('inventoryForm');
     const tableBody = document.getElementById('inventoryTableBody');
     let vendorChartInstance = null; let valueChartInstance = null; let sortableInstance = null;
+    let isSortedByGroup = false; // 紀錄目前是否正在依組別排序
 
     if (sessionStorage.getItem('adminToken')) { showMainSystem(); }
 
@@ -266,10 +272,11 @@
     async function loadData() {
         tableBody.innerHTML = '<tr><td colspan="17" style="text-align:center;">載入中... ☁️</td></tr>';
         const res = await fetch(API_URL); inventoryData = await res.json();
+        isSortedByGroup = false; // 預設照系統排序
         renderTable(); renderDashboard(); checkAudits();
     }
 
-    // 💡 演算法大升級：優先平衡品項數，同時兼顧數量，確保符合 5:1 比例
+    // 💡 智能派單邏輯：加入「洗牌機制」，徹底打亂品項！
     async function startSmartAssignmentAnimation() {
         const regInput = document.getElementById('regNames').value.trim();
         const ptInput = document.getElementById('ptNames').value.trim();
@@ -284,7 +291,6 @@
             let chunks = Array.from({length: regGroupsCount}, () => []);
             names.forEach((n, i) => chunks[i % regGroupsCount].push(n));
             chunks.forEach((chunk, i) => {
-                // 💡 正職權重設定為 5
                 if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 5, currentLoad: 0, itemCount: 0 });
             });
         }
@@ -295,7 +301,6 @@
             let chunks = Array.from({length: ptGroupsCount}, () => []);
             names.forEach((n, i) => chunks[i % ptGroupsCount].push(n));
             chunks.forEach((chunk, i) => {
-                // 💡 PT權重設定為 1
                 if(chunk.length > 0) groups.push({ name: `PT第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 1, currentLoad: 0, itemCount: 0 });
             });
         }
@@ -304,13 +309,16 @@
 
         let assignPayload = [];
         
-        let itemsToAssign = inventoryData.filter(item => !item.auditMode || item.auditMode === 'AI')
-                                         .sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0));
+        // 💡 關鍵修正：在依照數量排序之前，先做一次徹底的「隨機洗牌」！
+        // 這樣數量完全相同的商品，每次都會以不同的順序發牌，不會再綁死在同一組了。
+        let itemsToAssign = inventoryData
+            .filter(item => !item.auditMode || item.auditMode === 'AI')
+            .sort(() => Math.random() - 0.5) // 第一層：徹底隨機洗牌
+            .sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0)); // 第二層：確保大數量優先發牌
         
         if(itemsToAssign.length === 0) return alert("目前沒有設定為「🤖 AI 自動」的品項可以分配！");
 
         itemsToAssign.forEach(item => {
-            // 💡 改良版發牌邏輯：當疲勞度相近時，用「已分配的品項數」來確保 5:1 比例
             groups.sort((a,b) => {
                 let scoreA = a.currentLoad / a.weight;
                 let scoreB = b.currentLoad / b.weight;
@@ -321,8 +329,6 @@
             });
 
             let target = groups[0];
-            // 💡 定義疲勞指數：每分到 1 個品項直接 +1000 點疲勞，每多 1 個數量再 +1 點
-            // 這能確保系統「絕不會」為了補足數量，而把幾百個小東西全塞給同一個人！
             let itemEffort = 1000 + (item.quantityOnsite || 0); 
             
             target.currentLoad += itemEffort;
@@ -342,7 +348,7 @@
 
         const stages = [
             "📥 讀取並過濾手動與免盤點品項...",
-            "🔀 打亂正職與 PT 人員...",
+            "🔀 徹底打亂人員與同數量商品順序...",
             "⚖️ 計算品項數與庫存綜合權重...",
             "🧠 AI 綜合防呆平衡演算法啟動..."
         ];
@@ -397,6 +403,28 @@
                 }, 120);
             }
         }, 500); 
+    }
+
+    // 💡 點擊表頭排序功能
+    function sortByAssignedGroup() {
+        if (!isSortedByGroup) {
+            inventoryData.sort((a, b) => {
+                const groupA = a.assignedGroup || 'ZZZ'; // 空的排最後
+                const groupB = b.assignedGroup || 'ZZZ';
+                return groupA.localeCompare(groupB);
+            });
+            isSortedByGroup = true;
+        } else {
+            // 切換回預設排序
+            inventoryData.sort((a, b) => {
+                const orderA = a.sortOrder || Number.MAX_SAFE_INTEGER;
+                const orderB = b.sortOrder || Number.MAX_SAFE_INTEGER;
+                if (orderA !== orderB) return orderA - orderB;
+                return b.id - a.id;
+            });
+            isSortedByGroup = false;
+        }
+        renderTable();
     }
 
     function checkAudits() {
