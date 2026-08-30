@@ -65,16 +65,20 @@
         .empty-state { text-align: center; padding: 30px; color: #777; font-style: italic; }
         
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: #fff; margin: 5% auto; padding: 25px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; }
+        .modal-content { background-color: #fff; margin: 5% auto; padding: 25px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .diff-red { color: #e74c3c; font-weight: bold; }
         .diff-green { color: #27ae60; font-weight: bold; }
         .audit-alert-btn { background-color: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; animation: pulse 1.5s infinite;}
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         
         /* 智能派單區塊樣式 */
         .assign-block { background: #fdfefe; border: 2px solid #3498db; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
         .assign-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
         @media (max-width: 768px) { .assign-grid { grid-template-columns: 1fr; } }
+
+        /* 💡 運算動畫專用樣式 */
+        .spinner { width: 50px; height: 50px; border: 6px solid #f3f3f3; border-top: 6px solid #8e44ad; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -97,6 +101,18 @@
             <button onclick="logout()" class="front-btn logout-btn">🚪 登出</button>
         </div>
         <h1>☁️ 雲端庫存管理系統 (後台)</h1>
+    </div>
+
+    <!-- 💡 智能派單動畫 Modal (用來錄影的特效視窗) -->
+    <div id="assignmentProcessModal" class="modal" style="z-index: 3000;">
+        <div class="modal-content" style="max-width: 500px; text-align: center; padding: 40px; margin-top: 15%;">
+            <h2 style="color: #8e44ad; margin-bottom: 20px; font-size: 1.8rem;">🎲 AI 智能派單運算中</h2>
+            <div class="spinner" id="processSpinner"></div>
+            <p id="assignStatusText" style="font-size: 1.2rem; font-weight: bold; color: #2c3e50; height: 30px; margin-top: 25px;">準備啟動演算法...</p>
+            <div style="width: 100%; background: #eee; border-radius: 10px; height: 12px; margin-top: 20px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                <div id="assignProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3498db, #8e44ad); transition: width 0.1s linear;"></div>
+            </div>
+        </div>
     </div>
 
     <!-- 審核 Modal -->
@@ -125,8 +141,8 @@
     <div class="card" id="dashboardCard" style="display: none;">
         <h2 class="card-title" style="margin-bottom: 20px;">📊 庫存數據分析</h2>
         <div class="dashboard-grid">
-            <div class="stat-box green"><div class="stat-title">總庫存價值</div><div class="stat-value" id="statTotalValue">$0</div></div>
-            <div class="stat-box"><div class="stat-title">總產品品項</div><div class="stat-value" id="statTotalSKU">0</div></div>
+            <div class="stat-box green"><div class="stat-title">總庫存價值 (NT$)</div><div class="stat-value" id="statTotalValue">$0</div></div>
+            <div class="stat-box"><div class="stat-title">總產品品項 (SKU)</div><div class="stat-value" id="statTotalSKU">0</div></div>
             <div class="stat-box orange"><div class="stat-title">所有總計件數</div><div class="stat-value" id="statTotalQty">0</div></div>
         </div>
         <div class="charts-container">
@@ -154,7 +170,7 @@
                     <input type="number" id="ptGroups" value="1" min="1" style="width:60px; padding:5px;">
                 </div>
             </div>
-            <button id="assignBtn" class="btn" style="width:100%; background:#8e44ad;" onclick="runSmartAssignment()">🚀 執行智能打亂派單</button>
+            <button id="assignBtn" class="btn" style="width:100%; background:#8e44ad; font-size:1.1rem; padding:12px;" onclick="startSmartAssignmentAnimation()">🚀 執行智能打亂派單</button>
         </div>
     </div>
 
@@ -240,8 +256,8 @@
         renderTable(); renderDashboard(); checkAudits();
     }
 
-    // 💡 智能派單邏輯
-    async function runSmartAssignment() {
+    // 💡 智能派單邏輯與超酷動畫 (用來錄影)
+    async function startSmartAssignmentAnimation() {
         const regInput = document.getElementById('regNames').value.trim();
         const ptInput = document.getElementById('ptNames').value.trim();
         const regGroupsCount = parseInt(document.getElementById('regGroups').value) || 1;
@@ -249,6 +265,7 @@
 
         let groups = [];
         
+        // 整理並打亂名單
         if(regInput) {
             let names = regInput.split(/[\/,\s]+/).filter(n => n.trim() !== '');
             names.sort(() => Math.random() - 0.5); 
@@ -269,7 +286,7 @@
             });
         }
 
-        if(groups.length === 0) return alert("請輸入名單");
+        if(groups.length === 0) return alert("請輸入至少一組名單");
 
         let assignPayload = [];
         let itemsToAssign = [...inventoryData].sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0));
@@ -278,15 +295,82 @@
             groups.sort((a,b) => (a.currentLoad / a.weight) - (b.currentLoad / b.weight));
             let target = groups[0];
             target.currentLoad += (item.quantityOnsite || 0.1);
-            item.assignedGroup = target.name;
             assignPayload.push({ id: item.id, assignedGroup: target.name });
         });
 
-        const btn = document.getElementById('assignBtn'); btn.innerText = '分配中...'; btn.disabled = true;
-        try {
-            await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'assignGroups', items: assignPayload }) });
-            alert('✅ 智能派單完成！請請員工登入盤點系統查看任務。'); await loadData();
-        } catch(e) { alert('派單失敗'); } finally { btn.innerText = '🚀 執行智能打亂派單'; btn.disabled = false; }
+        // ================= 🎬 動畫開始 =================
+        const modal = document.getElementById('assignmentProcessModal');
+        const statusText = document.getElementById('assignStatusText');
+        const progressBar = document.getElementById('assignProgressBar');
+        const spinner = document.getElementById('processSpinner');
+        
+        modal.style.display = 'block';
+        spinner.style.display = 'block';
+        progressBar.style.width = "0%";
+        document.getElementById('assignBtn').disabled = true;
+
+        // 階段一文字
+        const stages = [
+            "📥 讀取盤點名單...",
+            "🔀 打亂正職與 PT 人員...",
+            "⚖️ 計算商品現場庫存權重...",
+            "🧠 AI 核心平衡演算法啟動..."
+        ];
+
+        let stageIdx = 0;
+        const prepInterval = setInterval(() => {
+            if (stageIdx < stages.length) {
+                statusText.innerText = stages[stageIdx];
+                progressBar.style.width = (stageIdx * 10) + "%";
+                stageIdx++;
+            } else {
+                clearInterval(prepInterval);
+                
+                // 階段二：快速閃動分配畫面
+                let itemIdx = 0;
+                const totalItems = assignPayload.length;
+                const assignInterval = setInterval(() => {
+                    if (itemIdx < totalItems) {
+                        const item = assignPayload[itemIdx];
+                        statusText.innerText = `📦 分配中 ➔ ${item.assignedGroup}`;
+                        let progress = 40 + ((itemIdx / totalItems) * 50);
+                        progressBar.style.width = progress + "%";
+                        
+                        // 每次跳 3~5 筆，讓動畫約跑 2 秒鐘
+                        itemIdx += Math.max(1, Math.floor(totalItems / 15)); 
+                    } else {
+                        clearInterval(assignInterval);
+                        statusText.innerText = "💾 寫入雲端資料庫...";
+                        progressBar.style.width = "95%";
+
+                        // 階段三：真正發送 API
+                        fetch(API_URL, { 
+                            method: 'POST', 
+                            headers: getAuthHeaders(), 
+                            body: JSON.stringify({ action: 'assignGroups', items: assignPayload }) 
+                        }).then(res => {
+                            if(!res.ok) throw new Error();
+                            progressBar.style.width = "100%";
+                            spinner.style.display = "none";
+                            statusText.innerText = "✅ 派單完成！";
+                            statusText.style.color = "#27ae60";
+                            
+                            setTimeout(() => {
+                                modal.style.display = 'none';
+                                alert('✅ 智能派單完成！請通知員工登入盤點系統查看任務。');
+                                document.getElementById('assignBtn').disabled = false;
+                                statusText.style.color = "#2c3e50"; // 恢復顏色
+                                loadData();
+                            }, 800);
+                        }).catch(e => {
+                            alert('派單失敗');
+                            modal.style.display = 'none';
+                            document.getElementById('assignBtn').disabled = false;
+                        });
+                    }
+                }, 120);
+            }
+        }, 500); // 每個預備文字停留 0.5 秒
     }
 
     function checkAudits() {
@@ -352,7 +436,6 @@
                 <td><strong><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productId">${item.productId||''}</div></strong></td>
                 <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productName">${item.productName||''}</div></td>
                 
-                <!-- 負責組別欄位 -->
                 <td style="color:#8e44ad; font-weight:bold; font-size:0.9rem;"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="assignedGroup">${item.assignedGroup||''}</div></td>
                 
                 <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="vendor">${item.vendor||''}</div></td>
