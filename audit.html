@@ -128,10 +128,10 @@
         const list = document.getElementById('listContainer');
         list.innerHTML = '';
         
-        // 💡 確保完全過濾掉玻璃 (G 開頭) 的品項，即便後台不小心改到
+        // 💡 保護機制：過濾掉 1. 不是自己組別的 2. 被設為「免盤點」(SKIP) 的品項
         const myItems = inventoryData.filter(item => 
             (item.assignedGroup || '').trim() === selectedGroup &&
-            !(item.productId || '').toUpperCase().startsWith('G')
+            item.auditMode !== 'SKIP'
         );
         
         if (myItems.length === 0) {
