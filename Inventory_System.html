@@ -270,9 +270,418 @@
             </div>
         </form>
     </div>
-
-    <div class="card">
+   <div class="card">
         <div class="header-actions">
             <h2 class="card-title">📦 目前庫存總覽</h2>
             <div class="header-actions-right">
-                <button class="btn btn-dange
+                <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 批量刪除</button>
+                <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出 CSV</button>
+                <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 智慧導入 CSV</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align:center;">排序</th>
+                        <th style="width: 40px; text-align:center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                        <th>照片</th><th>產品編號</th><th>品名</th>
+                        <th>盤點模式</th>
+                        <th style="color:#8e44ad; text-decoration:underline;" class="sortable-header" onclick="sortByAssignedGroup()" title="點擊切換排序">負責組別 ↕</th>
+                        <th>廠商</th><th>單價</th>
+                        <th style="color:var(--secondary-color);">現場</th><th>倉庫</th>
+                        <th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他</th>
+                        <th style="color:#d35400;">總數</th><th>總價</th>
+                        <th style="text-align:center;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    let inventoryData = [];
+    let editingId = null; 
+    let currentOriginalPhoto = ''; 
+    const form = document.getElementById('inventoryForm');
+    const tableBody = document.getElementById('inventoryTableBody');
+    let vendorChartInstance = null; let valueChartInstance = null; let sortableInstance = null;
+    let isSortedByGroup = false; 
+
+    if (sessionStorage.getItem('adminToken')) { showMainSystem(); }
+
+    async function checkPassword() {
+        const input = document.getElementById('passwordInput').value;
+        const btn = document.querySelector('.login-btn');
+        btn.innerText = '驗證中...'; btn.disabled = true; document.getElementById('errorMsg').style.display = 'none';
+        try {
+            const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': input }, body: JSON.stringify({ action: 'login' }) });
+            if (res.ok) { sessionStorage.setItem('adminToken', input); showMainSystem(); } 
+            else { document.getElementById('errorMsg').style.display = 'block'; }
+        } catch (e) { alert('連線失敗'); } finally { btn.innerText = '登入系統'; btn.disabled = false; }
+    }
+
+    function handleEnter(e) { if (e.key === 'Enter') checkPassword(); }
+    function showMainSystem() { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('mainContainer').style.display = 'block'; loadData(); }
+    function logout() { sessionStorage.removeItem('adminToken'); location.reload(); }
+    function getAuthHeaders() { return { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }; }
+
+    async function loadData() {
+        tableBody.innerHTML = '<tr><td colspan="17" style="text-align:center; padding: 40px; font-size: 1.2rem; color: #7f8c8d;">載入資料中... ☁️</td></tr>';
+        try {
+            const res = await fetch(API_URL); inventoryData = await res.json();
+            isSortedByGroup = false; 
+            renderTable(); renderDashboard(); checkAudits();
+        } catch(e) { tableBody.innerHTML = '<tr><td colspan="17" style="text-align:center; color: red;">資料載入失敗，請檢查網路</td></tr>'; }
+    }
+
+    async function startSmartAssignmentAnimation() {
+        const regInput = document.getElementById('regNames').value.trim();
+        const ptInput = document.getElementById('ptNames').value.trim();
+        const regGroupsCount = parseInt(document.getElementById('regGroups').value) || 1;
+        const ptGroupsCount = parseInt(document.getElementById('ptGroups').value) || 1;
+
+        let groups = [];
+        
+        if(regInput) {
+            let names = regInput.split(/[\/,\s]+/).filter(n => n.trim() !== '');
+            names.sort(() => Math.random() - 0.5); 
+            let chunks = Array.from({length: regGroupsCount}, () => []);
+            names.forEach((n, i) => chunks[i % regGroupsCount].push(n));
+            chunks.forEach((chunk, i) => {
+                if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 5, currentLoad: 0, itemCount: 0 });
+            });
+if(ptInput) {
+            let names = ptInput.split(/[\/,\s]+/).filter(n => n.trim() !== '');
+            names.sort(() => Math.random() - 0.5); 
+            let chunks = Array.from({length: ptGroupsCount}, () => []);
+            names.forEach((n, i) => chunks[i % ptGroupsCount].push(n));
+            chunks.forEach((chunk, i) => {
+                if(chunk.length > 0) groups.push({ name: `PT第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 1, currentLoad: 0, itemCount: 0 });
+            });
+        }
+
+        if(groups.length === 0) return alert("請輸入至少一組名單");
+
+        let assignPayload = [];
+        let aiItems = inventoryData.filter(item => !item.auditMode || item.auditMode === 'AI');
+        let itemsToAssign = aiItems.filter(item => (item.quantityOnsite || 0) > 0)
+                                   .sort(() => Math.random() - 0.5) 
+                                   .sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0));
+                                   
+        let zeroItems = aiItems.filter(item => (item.quantityOnsite || 0) <= 0);
+        
+        if(itemsToAssign.length === 0) return alert("目前沒有「現場數量大於 0」且設定為「🤖 AI 自動」的品項可以分配！");
+
+        itemsToAssign.forEach(item => {
+            groups.sort((a,b) => {
+                let scoreA = a.currentLoad / a.weight;
+                let scoreB = b.currentLoad / b.weight;
+                if (Math.abs(scoreA - scoreB) < 0.001) return (a.itemCount / a.weight) - (b.itemCount / b.weight);
+                return scoreA - scoreB;
+            });
+
+            let target = groups[0];
+            let itemEffort = 1000 + (item.quantityOnsite || 0); 
+            target.currentLoad += itemEffort;
+            target.itemCount = (target.itemCount || 0) + 1;
+            assignPayload.push({ id: item.id, assignedGroup: target.name });
+        });
+        
+        zeroItems.forEach(item => assignPayload.push({ id: item.id, assignedGroup: '' }));
+
+        const modal = document.getElementById('assignmentProcessModal');
+        const statusText = document.getElementById('assignStatusText');
+        const progressBar = document.getElementById('assignProgressBar');
+        const spinner = document.getElementById('processSpinner');
+        
+        modal.style.display = 'block'; spinner.style.display = 'block'; progressBar.style.width = "0%";
+        document.getElementById('assignBtn').disabled = true;
+
+        const stages = [ "📥 讀取並過濾手動與免盤點品項...", "🔀 徹底打亂人員與商品...", "⚙️ 剃除現場數量為 0 之品項...", "🧠 AI 綜合防呆平衡演算法啟動..." ];
+        let stageIdx = 0;
+        const prepInterval = setInterval(() => {
+            if (stageIdx < stages.length) {
+                statusText.innerText = stages[stageIdx]; progressBar.style.width = (stageIdx * 10) + "%"; stageIdx++;
+            } else {
+                clearInterval(prepInterval);
+                let itemIdx = 0; const totalItems = assignPayload.length;
+                const assignInterval = setInterval(() => {
+                    if (itemIdx < totalItems) {
+                        const item = assignPayload[itemIdx];
+                        if(item.assignedGroup) statusText.innerText = `📦 分配中 ➔ ${item.assignedGroup}`;
+                        progressBar.style.width = (40 + ((itemIdx / totalItems) * 50)) + "%";
+                        itemIdx += Math.max(1, Math.floor(totalItems / 15)); 
+                    } else {
+                        clearInterval(assignInterval);
+                        statusText.innerText = "💾 寫入雲端資料庫..."; progressBar.style.width = "95%";
+                        fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'assignGroups', items: assignPayload }) })
+                        .then(res => {
+                            if(!res.ok) throw new Error();
+                            progressBar.style.width = "100%"; spinner.style.display = "none";
+                            statusText.innerText = "✅ 派單完成！"; statusText.style.color = "#27ae60";
+                            setTimeout(() => {
+                                modal.style.display = 'none';
+                                alert(`✅ 智能派單完成！\n共分配了 ${itemsToAssign.length} 個需要盤點的項目。\n(自動跳過了 ${zeroItems.length} 個庫存為 0 的品項)`);
+                                document.getElementById('assignBtn').disabled = false; statusText.style.color = "#2c3e50"; 
+                                loadData();
+                            }, 800);
+                        }).catch(e => { alert('派單失敗'); modal.style.display = 'none'; document.getElementById('assignBtn').disabled = false; });
+                    }
+                }, 120);
+            }
+        }, 500); 
+    }
+
+    function sortByAssignedGroup() {
+        if (!isSortedByGroup) {
+            inventoryData.sort((a, b) => {
+                const groupA = a.assignedGroup || 'ZZZ'; 
+                const groupB = b.assignedGroup || 'ZZZ';
+                return groupA.localeCompare(groupB);
+            });
+            isSortedByGroup = true;
+        } else {
+            inventoryData.sort((a, b) => {
+                const orderA = a.sortOrder || Number.MAX_SAFE_INTEGER;
+                const orderB = b.sortOrder || Number.MAX_SAFE_INTEGER;
+                if (orderA !== orderB) return orderA - orderB;
+                return b.id - a.id;
+            });
+            isSortedByGroup = false;
+        }
+        renderTable();
+    }
+
+    function checkAudits() {
+        const pendingAudits = inventoryData.filter(i => i.auditOnsite !== null && i.auditOnsite !== undefined);
+        const btn = document.getElementById('auditAlertBtn');
+        if (pendingAudits.length > 0) { btn.style.display = 'inline-block'; btn.innerText = `🔔 盤點待審核 (${pendingAudits.length})`; renderAuditModal(pendingAudits); } 
+        else { btn.style.display = 'none'; closeAuditModal(); }
+    }
+
+    function openAuditModal() { document.getElementById('auditModal').style.display = 'block'; }
+    function closeAuditModal() { document.getElementById('auditModal').style.display = 'none'; }
+
+    function renderAuditModal(audits) {
+        const tbody = document.getElementById('auditTableBody'); tbody.innerHTML = '';
+        audits.forEach(item => {
+            const oldQ = item.quantityOnsite || 0; const newQ = item.auditOnsite; const diff = newQ - oldQ;
+            const diffHtml = diff === 0 ? `<span style="color:#7f8c8d;">無差異</span>` : (diff > 0 ? `<span class="diff-green">+${diff}</span>` : `<span class="diff-red">${diff}</span>`);
+            tbody.innerHTML += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px 8px;"><span style="background:#f4ecf7; color:#8e44ad; padding:4px 8px; border-radius:6px; font-size:0.85rem; display:inline-block;">${item.assignedGroup || '未指派'}</span></td>
+                    <td><strong>${item.productId}</strong><br><span style="color:#555;font-size:0.9rem;">${item.productName}</span></td>
+                    <td style="text-align:center; font-size:1.1rem;">${oldQ}</td>
+                    <td style="text-align:center; font-size:1.2rem; color:var(--secondary-color); font-weight:bold;">${newQ}</td>
+                    <td style="text-align:center; font-size:1.1rem;">${diffHtml}</td>
+                    <td style="text-align:center;">
+                        <div style="display:flex; justify-content:center; gap:5px; flex-wrap:wrap;">
+                            <button class="btn" style="background:#27ae60; padding:6px 12px; font-size:0.9rem;" onclick="resolveAudit(${item.id}, true, ${newQ})">✅ 覆蓋</button>
+                            <button class="btn btn-danger" style="padding:6px 12px; font-size:0.9rem;" onclick="resolveAudit(${item.id}, false, null)">❌ 退回</button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    async function resolveAudit(id, isApprove, newValue) {
+        const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
+        let item = { ...inventoryData[itemIndex] };
+        if (isApprove) {
+            item.quantityOnsite = newValue;
+            item.totalPrice = item.price * ((item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0));
+        }
+        item.auditOnsite = null;
+        try {
+            await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
+            inventoryData[itemIndex] = item; renderTable(); renderDashboard(); checkAudits();
+        } catch(e) { alert("處理失敗"); }
+    }
+
+    async function changeAuditMode(id, modeValue) {
+        const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
+        let item = { ...inventoryData[itemIndex] };
+        item.auditMode = modeValue;
+        const selectEl = document.getElementById(`modeSelect-${id}`); selectEl.className = `mode-select mode-${modeValue}`;
+        try { await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) }); inventoryData[itemIndex] = item; } catch(e) { alert("切換模式失敗"); }
+    }
+
+    function renderTable() {
+        tableBody.innerHTML = '';
+        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="17" class="empty-state">目前為空，趕快新增資料吧！</td></tr>';
+        
+        inventoryData.forEach(item => {
+            const tr = document.createElement('tr'); tr.setAttribute('data-id', item.id);
+            const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;font-size:12px;color:#999;">無圖</div>`;
+            const fm = n => '$' + n.toLocaleString();
+            const qTotal = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0);
+            const onsiteStyle = (item.auditOnsite !== null && item.auditOnsite !== undefined) ? 'background-color:#fadbd8; border-radius:4px;' : '';
+            
+            const currentMode = item.auditMode || 'AI';
+            const modeSelectHtml = `
+                <select id="modeSelect-${item.id}" class="mode-select mode-${currentMode}" onchange="changeAuditMode(${item.id}, this.value)">
+                    <option value="AI" ${currentMode === 'AI' ? 'selected' : ''}>🤖 自動</option>
+                    <option value="MANUAL" ${currentMode === 'MANUAL' ? 'selected' : ''}>🔒 手動</option>
+                    <option value="SKIP" ${currentMode === 'SKIP' ? 'selected' : ''}>🚫 免盤</option>
+                </select>`;
+
+            tr.innerHTML = `
+                <td class="drag-handle" title="按住拖拉">☰</td>
+                <td style="text-align:center;"><input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()"></td>
+                <td><label class="photo-upload-label">${photo}<div class="photo-overlay">換圖</div><input type="file" accept="image/*" style="display:none;" onchange="inlinePhotoUpload(event, ${item.id})"></label></td>
+                <td><strong><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productId">${item.productId||''}</div></strong></td>
+                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productName">${item.productName||''}</div></td>
+                
+                <td>${modeSelectHtml}</td>
+                <td style="color:#8e44ad; font-weight:bold; font-size:0.95rem;"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="assignedGroup">${item.assignedGroup||''}</div></td>
+                
+                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="vendor">${item.vendor||''}</div></td>
+                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="price">${item.price||0}</div></td>
+                
+                <td class="qty-hl" style="${onsiteStyle}"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantityOnsite">${item.quantityOnsite || 0}</div></td>
+                <td class="qty-hl"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantity">${item.quantity || 0}</div></td>
+                
+                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowZhongxiao">${item.borrowZhongxiao || 0}</div></td>
+                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowApon">${item.borrowApon || 0}</div></td>
+                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowOther">${item.borrowOther || 0}</div></td>
+                
+                <td class="qty-total" id="totalQty-${item.id}">${qTotal}</td>
+                <td><strong id="totalPrice-${item.id}" style="color:#27ae60;">${fm((item.price||0)*qTotal)}</strong></td>
+                <td><div class="action-buttons"><button class="btn btn-edit" style="padding:6px 10px;" onclick="startEdit(${item.id})">編輯</button><button class="btn btn-danger" style="padding:6px 10px;" onclick="deleteItem(${item.id})">刪除</button></div></td>`;
+            tableBody.appendChild(tr);
+        });
+        initSortable(); initInlineEdit(); 
+    }
+
+    function exportCSV() {
+        if (inventoryData.length === 0) { alert("沒有資料可以匯出！"); return; }
+        const csvData = inventoryData.map(item => ({ "系統ID": item.id || "", "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "", "盤點模式": item.auditMode || "AI", "負責組別": item.assignedGroup || "", "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "", "單價": item.price || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0, "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0, "照片資料": item.photo || "" }));
+        const csvContent = "\uFEFF" + Papa.unparse(csvData, { header: true });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const today = new Date(); const dateStr = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+        link.setAttribute("href", URL.createObjectURL(blob)); link.setAttribute("download", `庫存清單_${dateStr}.csv`);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    function initInlineEdit() {
+        document.querySelectorAll('.editable-cell').forEach(cell => {
+            cell.addEventListener('focus', function() { this.dataset.originalValue = this.innerText.trim(); });
+            cell.addEventListener('blur', function() { inlineSave(this); });
+            cell.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+        });
+    }
+
+    async function inlineSave(cellElement) {
+        const newValue = cellElement.innerText.trim(); const originalValue = cellElement.dataset.originalValue;
+        if (newValue === originalValue) return;
+        const id = parseInt(cellElement.dataset.id); const field = cellElement.dataset.field;
+        const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
+        let item = { ...inventoryData[itemIndex] };
+        if (['price', 'quantityOnsite', 'quantity', 'borrowZhongxiao', 'borrowApon', 'borrowOther'].includes(field)) {
+            let num = parseFloat(newValue) || 0; item[field] = num; cellElement.innerText = num; 
+            const totalQ = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0);
+            item.totalPrice = item.price * totalQ;
+            document.getElementById(`totalQty-${id}`).innerText = totalQ; document.getElementById(`totalPrice-${id}`).innerText = '$' + item.totalPrice.toLocaleString();
+        } else { item[field] = newValue; }
+        cellElement.style.backgroundColor = '#fcf3cf';
+        try {
+            await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
+            inventoryData[itemIndex] = item; cellElement.style.backgroundColor = '#d5f5e3'; setTimeout(() => cellElement.style.backgroundColor = '', 1000); renderDashboard(); 
+        } catch (err) { alert('儲存失敗'); cellElement.innerText = originalValue; cellElement.style.backgroundColor = '#fadbd8'; }
+    }
+
+    function inlinePhotoUpload(event, id) {
+        const file = event.target.files[0]; if (!file) return;
+        const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
+        let item = { ...inventoryData[itemIndex] };
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            item.photo = e.target.result; 
+            try { await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) }); inventoryData[itemIndex] = item; renderTable(); } catch (err) { alert('照片上傳失敗'); }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function initSortable() {
+        if (sortableInstance) sortableInstance.destroy(); 
+        sortableInstance = new Sortable(tableBody, {
+            handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost',
+            onEnd: async function () {
+                const rows = tableBody.querySelectorAll('tr[data-id]'); const newOrderList = [];
+                rows.forEach((row, index) => { newOrderList.push({ id: parseInt(row.getAttribute('data-id')), sortOrder: index + 1 }); });
+                try { await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'reorder', items: newOrderList }) }); } catch(e) { alert("儲存排序失敗"); } finally { fetch(API_URL).then(r=>r.json()).then(d => inventoryData = d); }
+            }
+        });
+    }
+
+   function renderDashboard() {
+        if (inventoryData.length === 0) { document.getElementById('dashboardCard').style.display = 'none'; return; }
+        document.getElementById('dashboardCard').style.display = 'block'; let totalValue = 0; let totalQty = 0; let vendorCounts = {};
+        inventoryData.forEach(item => {
+            const sumQty = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0); 
+            totalValue += (item.price || 0) * sumQty; totalQty += sumQty; const vendor = item.vendor || '未登記廠商'; vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
+        });
+        document.getElementById('statTotalValue').innerText = '$' + totalValue.toLocaleString(); document.getElementById('statTotalSKU').innerText = inventoryData.length.toLocaleString(); document.getElementById('statTotalQty').innerText = totalQty.toLocaleString();
+        const ctxVendor = document.getElementById('vendorChart').getContext('2d');
+        if (vendorChartInstance) vendorChartInstance.destroy(); 
+        vendorChartInstance = new Chart(ctxVendor, { type: 'doughnut', data: { labels: Object.keys(vendorCounts), datasets: [{ data: Object.values(vendorCounts), backgroundColor: ['#3498db', '#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e', '#e67e22'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
+        const topItems = [...inventoryData].map(i => ({...i, total: (i.price||0)*((i.quantity||0)+(i.quantityOnsite||0)+(i.borrowZhongxiao||0)+(i.borrowApon||0)+(i.borrowOther||0))})).sort((a, b) => b.total - a.total).slice(0, 5);
+        const ctxValue = document.getElementById('valueChart').getContext('2d');
+        if (valueChartInstance) valueChartInstance.destroy(); 
+        valueChartInstance = new Chart(ctxValue, { type: 'bar', data: { labels: topItems.map(i => i.productName || i.productId), datasets: [{ label: '庫存總價值', data: topItems.map(i => i.total), backgroundColor: '#27ae60', borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false } });
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const itemData = {
+            id: editingId ? editingId : Date.now(), orderId: document.getElementById('orderId').value, productId: document.getElementById('productId').value, productName: document.getElementById('productName').value, spec: document.getElementById('spec').value, 
+            auditMode: document.getElementById('auditMode').value, vendor: document.getElementById('vendor').value, purpose: document.getElementById('purpose').value, location: document.getElementById('location').value, price: parseFloat(document.getElementById('price').value) || 0,
+            quantityOnsite: parseInt(document.getElementById('quantityOnsite').value) || 0, quantity: parseInt(document.getElementById('quantity').value) || 0, borrowZhongxiao: parseInt(document.getElementById('borrowZhongxiao').value) || 0, borrowApon: parseInt(document.getElementById('borrowApon').value) || 0, borrowOther: parseInt(document.getElementById('borrowOther').value) || 0, assignedGroup: ''
+        };
+        itemData.totalPrice = itemData.price * (itemData.quantityOnsite + itemData.quantity + itemData.borrowZhongxiao + itemData.borrowApon + itemData.borrowOther);
+        const photoInput = document.getElementById('photo');
+        if (photoInput.files && photoInput.files[0]) {
+            const reader = new FileReader(); reader.onload = e => { itemData.photo = e.target.result; saveToServer(itemData); }; reader.readAsDataURL(photoInput.files[0]);
+        } else { itemData.photo = editingId ? currentOriginalPhoto : ''; saveToServer(itemData); }
+    });
+
+    async function saveToServer(itemData) { try { await fetch(API_URL, { method: editingId ? 'PUT' : 'POST', headers: getAuthHeaders(), body: JSON.stringify(itemData) }); cancelEdit(); await loadData(); } catch (err) { alert('儲存失敗'); } }
+    async function deleteItem(id) { if(confirm('確定刪除？')) { await fetch(`${API_URL}?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() }); if (id === editingId) cancelEdit(); await loadData(); } }
+    function startEdit(id) { const item = inventoryData.find(i => i.id === id); if(!item) return; editingId = id; currentOriginalPhoto = item.photo || ''; document.getElementById('orderId').value = item.orderId || ''; document.getElementById('productId').value = item.productId || ''; document.getElementById('productName').value = item.productName || ''; document.getElementById('spec').value = item.spec || ''; document.getElementById('auditMode').value = item.auditMode || 'AI'; document.getElementById('vendor').value = item.vendor || ''; document.getElementById('purpose').value = item.purpose || ''; document.getElementById('location').value = item.location || ''; document.getElementById('price').value = item.price || 0; document.getElementById('quantityOnsite').value = item.quantityOnsite || 0; document.getElementById('quantity').value = item.quantity || 0; document.getElementById('borrowZhongxiao').value = item.borrowZhongxiao || 0; document.getElementById('borrowApon').value = item.borrowApon || 0; document.getElementById('borrowOther').value = item.borrowOther || 0; document.getElementById('formCard').classList.add('edit-mode'); document.getElementById('formTitle').innerText = `✏️ 編輯資料`; document.getElementById('cancelEditBtn').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    function cancelEdit() { editingId = null; currentOriginalPhoto = ''; form.reset(); document.getElementById('formCard').classList.remove('edit-mode'); document.getElementById('formTitle').innerText = '新增進貨/庫存'; document.getElementById('cancelEditBtn').style.display = 'none'; }
+    function toggleSelectAll() { const s=document.getElementById('selectAll'); document.querySelectorAll('.row-checkbox').forEach(cb=>cb.checked=s.checked); updateBatchDeleteBtn(); }
+    function updateBatchDeleteBtn() { const c=document.querySelectorAll('.row-checkbox:checked').length; const btn=document.getElementById('batchDeleteBtn'); btn.style.display=c>0?'inline-block':'none'; if(c>0)btn.innerText=`🗑️ 批量刪除 (${c})`; }
+    async function batchDelete() { const cb=document.querySelectorAll('.row-checkbox:checked'); const ids=Array.from(cb).map(c=>c.value); if(ids.length===0)return; if(confirm(`確定刪除 ${ids.length} 筆資料嗎？`)){ document.getElementById('batchDeleteBtn').innerText='刪除中...'; await Promise.all(ids.map(id=>fetch(`${API_URL}?id=${id}`,{method:'DELETE',headers:getAuthHeaders()}))); await loadData(); } }
+    
+    document.getElementById('csvFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            complete: async function(results) {
+                if (results.data.length === 0) return alert("檔案內沒有資料！");
+                let updateCount = 0; let insertCount = 0; const upsertData = [];
+                results.data.forEach((row, index) => {
+                    if (!row['產品編號'] && !row['品名']) return;
+                    const price = parseFloat(row['單價']) || 0; const qOnsite = parseInt(row['現場庫存']) || 0; const qWarehouse = parseInt(row['倉庫庫存']) || parseInt(row['數量']) || 0; const qBZ = parseInt(row['忠孝外借']) || 0; const qBA = parseInt(row['艾朋外借']) || 0; const qBO = parseInt(row['其他外借']) || 0;
+                    const tQty = qOnsite + qWarehouse + qBZ + qBA + qBO;
+                    let isUpdate = false; let targetId = null; let originalPhoto = ''; let originalGroup = ''; let originalAudit = null; let originalMode = 'AI';
+                    if (row['系統ID']) { const existing = inventoryData.find(i => String(i.id) === String(row['系統ID'])); if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; originalGroup = existing.assignedGroup || ''; originalAudit = existing.auditOnsite; originalMode = existing.auditMode || 'AI'; } }
+                    if (!isUpdate && row['產品編號']) { const existing = inventoryData.find(i => String(i.productId) === String(row['產品編號'])); if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; originalGroup = existing.assignedGroup || ''; originalAudit = existing.auditOnsite; originalMode = existing.auditMode || 'AI'; } }
+                    if (isUpdate) { updateCount++; } else { insertCount++; targetId = Date.now() + index; }
+                    upsertData.push({ isUpdate: isUpdate, id: targetId, photo: row['照片資料'] || originalPhoto, orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: price * tQty, assignedGroup: row['負責組別'] || originalGroup, auditMode: row['盤點模式'] || originalMode, auditOnsite: originalAudit });
+                });
+                if (upsertData.length === 0) return alert("沒有找到有效的資料列！");
+                if (!confirm(`🔍 將執行以下操作：\n🔄 覆蓋更新：${updateCount} 筆\n✨ 全新建立：${insertCount} 筆\n\n確定執行導入？`)) { e.target.value = ''; return; }
+                try { tableBody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 40px;">處理中...</td></tr>`; await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'batchUpsert', items: upsertData }) }); alert(`✅ 成功導入 ${upsertData.length} 筆資料！`); await loadData(); } catch (error) { alert("發生錯誤。"); await loadData(); } e.target.value = ''; 
+            }
+        });
+    });
+</script>
+</body>
+</html>
