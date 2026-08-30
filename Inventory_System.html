@@ -82,8 +82,6 @@
         .mode-AI { color: #2980b9; background: #ebf5fb; border-color: #a9cce3; }
         .mode-MANUAL { color: #d35400; background: #fdf2e9; border-color: #f5cba7; }
         .mode-SKIP { color: #7f8c8d; background: #f2f3f4; border-color: #d5d8dc; }
-        
-        /* 💡 表頭排序按鈕的特效 */
         .sortable-header { cursor: pointer; transition: 0.2s; }
         .sortable-header:hover { background-color: #e5e8e8; color: #8e44ad; }
     </style>
@@ -160,7 +158,7 @@
 
     <div class="card">
         <h2 class="card-title" style="margin-bottom: 20px;">🎲 智能盤點派單</h2>
-        <p style="color:#7f8c8d; font-size:0.95rem; margin-top:-10px;">系統將確保「品項數與數量」綜合平衡，並遵守設定的<strong style="color:#e74c3c;">權重比例 (正職 5 : PT 1)</strong> 進行公平分配。</p>
+        <p style="color:#7f8c8d; font-size:0.95rem; margin-top:-10px;">系統將根據<strong style="color:#e74c3c;">權重比例 (正職 5 : PT 1)</strong> 分配「🤖 AI 自動」品項。<strong>(現場數量為 0 的品項將自動跳過不分配)</strong></p>
         <div class="assign-block">
             <div class="assign-grid">
                 <div>
@@ -230,7 +228,6 @@
                         <th style="width: 30px;">排序</th><th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                         <th>照片</th><th>產品編號</th><th>品名</th>
                         <th>盤點模式</th>
-                        <!-- 💡 加上點擊排序功能，方便派單後檢查 -->
                         <th style="color:#8e44ad; text-decoration:underline;" class="sortable-header" onclick="sortByAssignedGroup()" title="點擊依組別排序">負責組別 ↕</th>
                         <th>廠商</th><th>單價</th><th>現場</th><th>倉庫</th><th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他</th><th style="color:#e67e22;">總數</th><th>總價</th><th>操作</th>
                     </tr>
@@ -249,7 +246,7 @@
     const form = document.getElementById('inventoryForm');
     const tableBody = document.getElementById('inventoryTableBody');
     let vendorChartInstance = null; let valueChartInstance = null; let sortableInstance = null;
-    let isSortedByGroup = false; // 紀錄目前是否正在依組別排序
+    let isSortedByGroup = false; 
 
     if (sessionStorage.getItem('adminToken')) { showMainSystem(); }
 
@@ -272,11 +269,11 @@
     async function loadData() {
         tableBody.innerHTML = '<tr><td colspan="17" style="text-align:center;">載入中... ☁️</td></tr>';
         const res = await fetch(API_URL); inventoryData = await res.json();
-        isSortedByGroup = false; // 預設照系統排序
+        isSortedByGroup = false; 
         renderTable(); renderDashboard(); checkAudits();
     }
 
-    // 💡 智能派單邏輯：加入「洗牌機制」，徹底打亂品項！
+    // 💡 智能派單邏輯：加入庫存為 0 的排除邏輯
     async function startSmartAssignmentAnimation() {
         const regInput = document.getElementById('regNames').value.trim();
         const ptInput = document.getElementById('ptNames').value.trim();
@@ -309,14 +306,18 @@
 
         let assignPayload = [];
         
-        // 💡 關鍵修正：在依照數量排序之前，先做一次徹底的「隨機洗牌」！
-        // 這樣數量完全相同的商品，每次都會以不同的順序發牌，不會再綁死在同一組了。
-        let itemsToAssign = inventoryData
-            .filter(item => !item.auditMode || item.auditMode === 'AI')
-            .sort(() => Math.random() - 0.5) // 第一層：徹底隨機洗牌
-            .sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0)); // 第二層：確保大數量優先發牌
+        // 💡 區分出 AI 自動分配的商品
+        let aiItems = inventoryData.filter(item => !item.auditMode || item.auditMode === 'AI');
         
-        if(itemsToAssign.length === 0) return alert("目前沒有設定為「🤖 AI 自動」的品項可以分配！");
+        // 💡 過濾出數量大於 0 的來分配，並進行雙重排序（隨機打亂 + 數量由大到小）
+        let itemsToAssign = aiItems.filter(item => (item.quantityOnsite || 0) > 0)
+                                   .sort(() => Math.random() - 0.5) 
+                                   .sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0));
+                                   
+        // 💡 這些是數量為 0 的商品，它們會被強制清除負責組別，不讓員工看見
+        let zeroItems = aiItems.filter(item => (item.quantityOnsite || 0) <= 0);
+        
+        if(itemsToAssign.length === 0) return alert("目前沒有「現場數量大於 0」且設定為「🤖 AI 自動」的品項可以分配！");
 
         itemsToAssign.forEach(item => {
             groups.sort((a,b) => {
@@ -335,6 +336,11 @@
             target.itemCount = (target.itemCount || 0) + 1;
             assignPayload.push({ id: item.id, assignedGroup: target.name });
         });
+        
+        // 💡 寫入數量為 0 的清除指令
+        zeroItems.forEach(item => {
+            assignPayload.push({ id: item.id, assignedGroup: '' });
+        });
 
         const modal = document.getElementById('assignmentProcessModal');
         const statusText = document.getElementById('assignStatusText');
@@ -348,8 +354,8 @@
 
         const stages = [
             "📥 讀取並過濾手動與免盤點品項...",
-            "🔀 徹底打亂人員與同數量商品順序...",
-            "⚖️ 計算品項數與庫存綜合權重...",
+            "🔀 徹底打亂人員與商品...",
+            "⚙️ 剃除數量為 0 之品項...",
             "🧠 AI 綜合防呆平衡演算法啟動..."
         ];
 
@@ -389,7 +395,7 @@
                             
                             setTimeout(() => {
                                 modal.style.display = 'none';
-                                alert(`✅ 智能派單完成！共完美分配了 ${totalItems} 個項目。\n(鎖定手動與免盤點的項目已保留)`);
+                                alert(`✅ 智能派單完成！\n共分配了 ${itemsToAssign.length} 個需要盤點的項目。\n(自動跳過了 ${zeroItems.length} 個庫存為 0 的品項)`);
                                 document.getElementById('assignBtn').disabled = false;
                                 statusText.style.color = "#2c3e50"; 
                                 loadData();
@@ -405,17 +411,15 @@
         }, 500); 
     }
 
-    // 💡 點擊表頭排序功能
     function sortByAssignedGroup() {
         if (!isSortedByGroup) {
             inventoryData.sort((a, b) => {
-                const groupA = a.assignedGroup || 'ZZZ'; // 空的排最後
+                const groupA = a.assignedGroup || 'ZZZ'; 
                 const groupB = b.assignedGroup || 'ZZZ';
                 return groupA.localeCompare(groupB);
             });
             isSortedByGroup = true;
         } else {
-            // 切換回預設排序
             inventoryData.sort((a, b) => {
                 const orderA = a.sortOrder || Number.MAX_SAFE_INTEGER;
                 const orderB = b.sortOrder || Number.MAX_SAFE_INTEGER;
