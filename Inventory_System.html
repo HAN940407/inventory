@@ -24,7 +24,6 @@
         
         #mainContainer { display: none; max-width: 1600px; margin: 0 auto; }
         
-        /* 📱 響應式頭部排版 */
         .header { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; text-align: center; gap: 15px; }
         .header h1 { color: var(--primary-color); margin: 0; font-size: 1.8rem; line-height: 1.2; }
         .btn-group-top { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; }
@@ -42,7 +41,6 @@
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
         .card.edit-mode { border: 2px solid var(--edit-color); box-shadow: 0 0 20px rgba(243, 156, 18, 0.15); }
         
-        /* 📱 響應式圖表與儀表板 */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .stat-box { padding: 20px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .stat-box.blue { background: linear-gradient(135deg, var(--secondary-color), #2980b9); }
@@ -56,7 +54,7 @@
         .chart-box { background: #fdfefe; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); height: 300px; width: 100%; position: relative; }
         
         .header-actions { display: flex; flex-direction: column; gap: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px; }
-        .header-actions-right { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; }
+        .header-actions-right { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; align-items: center; }
         @media (min-width: 768px) {
             .header-actions { flex-direction: row; justify-content: space-between; align-items: center; }
             .header-actions-right { justify-content: flex-end; }
@@ -79,7 +77,7 @@
         .btn-cancel { background-color: var(--cancel-color); color: white; display: none; }
         .btn-import { background-color: var(--import-color); color: white; }
         
-        /* 📱 響應式表格與滑動優化 */
+        /* 📱 響應式表格 */
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; box-shadow: inset 0 0 5px rgba(0,0,0,0.02); }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 0.95rem; }
         th, td { padding: 14px 10px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
@@ -88,7 +86,6 @@
         .row-checkbox, #selectAll { transform: scale(1.4); cursor: pointer; margin: 0; }
         .drag-handle { cursor: grab; font-size: 1.5rem; color: #bdc3c7; text-align: center; }
         
-        /* 手指點擊優化的 Inline Edit */
         .editable-cell { cursor: text; border: 1px solid transparent; border-radius: 6px; padding: 8px 10px; transition: 0.2s; background-color: transparent; min-width: 40px; text-align: center; font-size: 1rem;}
         .editable-cell:hover { border-color: var(--secondary-color); background-color: #f4f6f9; }
         .editable-cell:focus { outline: none; border-color: #2ecc71; background-color: #fff; box-shadow: 0 0 8px rgba(46, 204, 113, 0.3); }
@@ -129,6 +126,14 @@
         .mode-SKIP { color: #7f8c8d; background: #f2f3f4; border-color: #d5d8dc; }
         .sortable-header { cursor: pointer; transition: 0.2s; user-select: none; }
         .sortable-header:hover { background-color: #e5e8e8; color: #8e44ad; }
+        
+        /* 💡 新增：分頁器樣式 */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 25px; flex-wrap: wrap; }
+        .pagination button { padding: 8px 16px; background-color: white; border: 1px solid var(--primary-color); color: var(--primary-color); border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .pagination button:hover:not(:disabled) { background-color: var(--primary-color); color: white; }
+        .pagination button:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
+        .page-info { font-weight: bold; color: var(--primary-color); }
+        .search-box { padding: 10px 15px; border-radius: 8px; border: 2px solid var(--secondary-color); font-size: 1rem; width: 100%; max-width: 300px; outline: none;}
     </style>
 </head>
 <body>
@@ -239,7 +244,7 @@
         </div>
         <form id="inventoryForm">
             <div class="form-grid">
-                <div class="form-group"><label>上傳照片</label><input type="file" id="photo" accept="image/*" style="padding: 9px;"></div>
+                <div class="form-group"><label>上傳照片 (自動壓縮)</label><input type="file" id="photo" accept="image/*" style="padding: 9px;"></div>
                 <div class="form-group"><label>訂購編號</label><input type="text" id="orderId" required></div>
                 <div class="form-group"><label>產品編號 (SKU)</label><input type="text" id="productId" required></div>
                 <div class="form-group"><label>品名</label><input type="text" id="productName" required></div>
@@ -275,10 +280,12 @@
         <div class="header-actions">
             <h2 class="card-title">📦 目前庫存總覽</h2>
             <div class="header-actions-right">
-                <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 批量刪除</button>
-                <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出 CSV</button>
+                <!-- 💡 新增：表格搜尋框，讓找商品變快 -->
+                <input type="text" id="adminSearchInput" class="search-box" placeholder="🔍 搜尋編號、品名、廠商...">
+                <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 刪除</button>
+                <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
-                <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 智慧導入 CSV</button>
+                <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 導入</button>
             </div>
         </div>
         <div class="table-responsive">
@@ -300,18 +307,36 @@
                 <tbody id="inventoryTableBody"></tbody>
             </table>
         </div>
+        
+        <!-- 💡 新增：分頁控制器，提升載入速度 -->
+        <div class="pagination" id="adminPagination">
+            <button id="prevPageBtn" onclick="changePage(-1)">上一頁</button>
+            <span id="pageInfo" class="page-info">第 1 頁</span>
+            <button id="nextPageBtn" onclick="changePage(1)">下一頁</button>
+            <select id="itemsPerPage" onchange="changeItemsPerPage()" style="padding: 6px; border-radius: 6px; border: 1px solid #ccc;">
+                <option value="20">20 筆/頁</option>
+                <option value="50" selected>50 筆/頁</option>
+                <option value="100">100 筆/頁</option>
+                <option value="9999">顯示全部</option>
+            </select>
+        </div>
     </div>
 </div>
 
 <script>
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
     let inventoryData = [];
+    let filteredData = []; // 💡 分頁與搜尋用的陣列
     let editingId = null; 
     let currentOriginalPhoto = ''; 
     const form = document.getElementById('inventoryForm');
     const tableBody = document.getElementById('inventoryTableBody');
     let vendorChartInstance = null; let valueChartInstance = null; let sortableInstance = null;
     let isSortedByGroup = false; 
+    
+    // 💡 分頁設定
+    let currentPage = 1;
+    let itemsPerPage = 50;
 
     if (sessionStorage.getItem('adminToken')) { showMainSystem(); }
 
@@ -331,13 +356,139 @@
     function logout() { sessionStorage.removeItem('adminToken'); location.reload(); }
     function getAuthHeaders() { return { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }; }
 
+    // 📸 核心升級：前端照片自動壓縮函數
+    function compressImage(file, callback) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_SIZE = 800; // 最大邊長 800px，保證畫質又輕量
+                let width = img.width; let height = img.height;
+                if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } 
+                else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                callback(canvas.toDataURL('image/jpeg', 0.7)); // 轉換為 70% 品質 JPEG
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
     async function loadData() {
         tableBody.innerHTML = '<tr><td colspan="17" style="text-align:center; padding: 40px; font-size: 1.2rem; color: #7f8c8d;">載入資料中... ☁️</td></tr>';
         try {
             const res = await fetch(API_URL); inventoryData = await res.json();
             isSortedByGroup = false; 
-            renderTable(); renderDashboard(); checkAudits();
+            applyAdminFilter(); // 取代原本的 renderTable，改為先過濾再渲染分頁
+            renderDashboard(); checkAudits();
         } catch(e) { tableBody.innerHTML = '<tr><td colspan="17" style="text-align:center; color: red;">資料載入失敗，請檢查網路</td></tr>'; }
+    }
+
+    // 💡 搜尋與過濾邏輯
+    function applyAdminFilter() {
+        const query = document.getElementById('adminSearchInput').value.toLowerCase();
+        filteredData = inventoryData.filter(item => {
+            if (!query) return true;
+            const text = (item.productId + ' ' + item.productName + ' ' + item.vendor + ' ' + item.assignedGroup).toLowerCase();
+            return text.includes(query);
+        });
+
+        // 重新套用排序狀態
+        if (!isSortedByGroup) {
+            filteredData.sort((a, b) => {
+                const orderA = a.sortOrder || Number.MAX_SAFE_INTEGER;
+                const orderB = b.sortOrder || Number.MAX_SAFE_INTEGER;
+                if (orderA !== orderB) return orderA - orderB;
+                return b.id - a.id;
+            });
+        } else {
+            filteredData.sort((a, b) => (a.assignedGroup || 'ZZZ').localeCompare(b.assignedGroup || 'ZZZ'));
+        }
+
+        currentPage = 1; // 搜尋後回到第一頁
+        renderTable();
+    }
+
+    document.getElementById('adminSearchInput').addEventListener('input', applyAdminFilter);
+
+    // 💡 分頁渲染邏輯：解決載入過多卡頓的問題
+    function renderTable() {
+        tableBody.innerHTML = '';
+        
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+        if (currentPage < 1) currentPage = 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        document.getElementById('pageInfo').innerText = `第 ${currentPage} / ${totalPages} 頁 (共 ${filteredData.length} 筆)`;
+        document.getElementById('prevPageBtn').disabled = currentPage === 1;
+        document.getElementById('nextPageBtn').disabled = currentPage === totalPages;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const pageData = filteredData.slice(startIndex, startIndex + itemsPerPage);
+
+        if (pageData.length === 0) return tableBody.innerHTML = '<tr><td colspan="17" class="empty-state">目前沒有符合的資料</td></tr>';
+        
+        pageData.forEach(item => {
+            const tr = document.createElement('tr'); tr.setAttribute('data-id', item.id);
+            const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;font-size:12px;color:#999;">無圖</div>`;
+            const fm = n => '$' + n.toLocaleString();
+            const qTotal = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0);
+            const onsiteStyle = (item.auditOnsite !== null && item.auditOnsite !== undefined) ? 'background-color:#fadbd8; border-radius:6px;' : '';
+            
+            const currentMode = item.auditMode || 'AI';
+            const modeSelectHtml = `
+                <select id="modeSelect-${item.id}" class="mode-select mode-${currentMode}" onchange="changeAuditMode(${item.id}, this.value)">
+                    <option value="AI" ${currentMode === 'AI' ? 'selected' : ''}>🤖 自動</option>
+                    <option value="MANUAL" ${currentMode === 'MANUAL' ? 'selected' : ''}>🔒 手動</option>
+                    <option value="SKIP" ${currentMode === 'SKIP' ? 'selected' : ''}>🚫 免盤</option>
+                </select>`;
+
+            tr.innerHTML = `
+                <td class="drag-handle" title="按住拖拉">☰</td>
+                <td style="text-align:center;"><input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()"></td>
+                <td><label class="photo-upload-label">${photo}<div class="photo-overlay">換圖</div><input type="file" accept="image/*" style="display:none;" onchange="inlinePhotoUpload(event, ${item.id})"></label></td>
+                <td><strong><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productId">${item.productId||''}</div></strong></td>
+                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productName">${item.productName||''}</div></td>
+                
+                <td>${modeSelectHtml}</td>
+                <td style="color:#8e44ad; font-weight:bold; font-size:0.95rem;"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="assignedGroup">${item.assignedGroup||''}</div></td>
+                
+                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="vendor">${item.vendor||''}</div></td>
+                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="price">${item.price||0}</div></td>
+                
+                <td class="qty-hl" style="${onsiteStyle}"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantityOnsite">${item.quantityOnsite || 0}</div></td>
+                <td class="qty-hl"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantity">${item.quantity || 0}</div></td>
+                
+                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowZhongxiao">${item.borrowZhongxiao || 0}</div></td>
+                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowApon">${item.borrowApon || 0}</div></td>
+                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowOther">${item.borrowOther || 0}</div></td>
+                
+                <td class="qty-total" id="totalQty-${item.id}">${qTotal}</td>
+                <td><strong id="totalPrice-${item.id}" style="color:#27ae60;">${fm((item.price||0)*qTotal)}</strong></td>
+                <td><div class="action-buttons"><button class="btn btn-edit" style="padding:6px 10px;" onclick="startEdit(${item.id})">編輯</button><button class="btn btn-danger" style="padding:6px 10px;" onclick="deleteItem(${item.id})">刪除</button></div></td>`;
+            tableBody.appendChild(tr);
+        });
+        
+        document.getElementById('selectAll').checked = false;
+        updateBatchDeleteBtn();
+        initSortable(); initInlineEdit(); 
+    }
+
+    function changePage(dir) { 
+        currentPage += dir; 
+        renderTable(); 
+        // 切換頁面時自動滾動回表格頂端
+        const tableOffset = document.querySelector('.table-responsive').offsetTop;
+        window.scrollTo({ top: tableOffset - 50, behavior: 'smooth' }); 
+    }
+    
+    function changeItemsPerPage() { 
+        itemsPerPage = parseInt(document.getElementById('itemsPerPage').value); 
+        currentPage = 1; 
+        renderTable(); 
     }
 
     async function startSmartAssignmentAnimation() {
@@ -347,7 +498,6 @@
         const ptGroupsCount = parseInt(document.getElementById('ptGroups').value) || 1;
 
         let groups = [];
-        
         if(regInput) {
             let names = regInput.split(/[\/,\s]+/).filter(n => n.trim() !== '');
             names.sort(() => Math.random() - 0.5); 
@@ -357,7 +507,6 @@
                 if(chunk.length > 0) groups.push({ name: `正職第${i+1}組 (${chunk.join(', ')})`, weight: chunk.length * 5, currentLoad: 0, itemCount: 0 });
             });
         }
-        
         if(ptInput) {
             let names = ptInput.split(/[\/,\s]+/).filter(n => n.trim() !== '');
             names.sort(() => Math.random() - 0.5); 
@@ -375,7 +524,6 @@
         let itemsToAssign = aiItems.filter(item => (item.quantityOnsite || 0) > 0)
                                    .sort(() => Math.random() - 0.5) 
                                    .sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0));
-                                   
         let zeroItems = aiItems.filter(item => (item.quantityOnsite || 0) <= 0);
         
         if(itemsToAssign.length === 0) return alert("目前沒有「現場數量大於 0」且設定為「🤖 AI 自動」的品項可以分配！");
@@ -387,7 +535,6 @@
                 if (Math.abs(scoreA - scoreB) < 0.001) return (a.itemCount / a.weight) - (b.itemCount / b.weight);
                 return scoreA - scoreB;
             });
-
             let target = groups[0];
             let itemEffort = 1000 + (item.quantityOnsite || 0); 
             target.currentLoad += itemEffort;
@@ -442,22 +589,11 @@
 
     function sortByAssignedGroup() {
         if (!isSortedByGroup) {
-            inventoryData.sort((a, b) => {
-                const groupA = a.assignedGroup || 'ZZZ'; 
-                const groupB = b.assignedGroup || 'ZZZ';
-                return groupA.localeCompare(groupB);
-            });
             isSortedByGroup = true;
         } else {
-            inventoryData.sort((a, b) => {
-                const orderA = a.sortOrder || Number.MAX_SAFE_INTEGER;
-                const orderB = b.sortOrder || Number.MAX_SAFE_INTEGER;
-                if (orderA !== orderB) return orderA - orderB;
-                return b.id - a.id;
-            });
             isSortedByGroup = false;
         }
-        renderTable();
+        applyAdminFilter();
     }
 
     function checkAudits() {
@@ -502,7 +638,7 @@
         item.auditOnsite = null;
         try {
             await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
-            inventoryData[itemIndex] = item; renderTable(); renderDashboard(); checkAudits();
+            inventoryData[itemIndex] = item; applyAdminFilter(); renderDashboard(); checkAudits();
         } catch(e) { alert("處理失敗"); }
     }
 
@@ -512,53 +648,6 @@
         item.auditMode = modeValue;
         const selectEl = document.getElementById(`modeSelect-${id}`); selectEl.className = `mode-select mode-${modeValue}`;
         try { await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) }); inventoryData[itemIndex] = item; } catch(e) { alert("切換模式失敗"); }
-    }
-
-    function renderTable() {
-        tableBody.innerHTML = '';
-        if (inventoryData.length === 0) return tableBody.innerHTML = '<tr><td colspan="17" class="empty-state">目前為空，趕快新增資料吧！</td></tr>';
-        
-        inventoryData.forEach(item => {
-            const tr = document.createElement('tr'); tr.setAttribute('data-id', item.id);
-            const photo = item.photo ? `<img src="${item.photo}" class="item-photo">` : `<div class="item-photo" style="display:flex;align-items:center;justify-content:center;font-size:12px;color:#999;">無圖</div>`;
-            const fm = n => '$' + n.toLocaleString();
-            const qTotal = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0);
-            const onsiteStyle = (item.auditOnsite !== null && item.auditOnsite !== undefined) ? 'background-color:#fadbd8; border-radius:4px;' : '';
-            
-            const currentMode = item.auditMode || 'AI';
-            const modeSelectHtml = `
-                <select id="modeSelect-${item.id}" class="mode-select mode-${currentMode}" onchange="changeAuditMode(${item.id}, this.value)">
-                    <option value="AI" ${currentMode === 'AI' ? 'selected' : ''}>🤖 自動</option>
-                    <option value="MANUAL" ${currentMode === 'MANUAL' ? 'selected' : ''}>🔒 手動</option>
-                    <option value="SKIP" ${currentMode === 'SKIP' ? 'selected' : ''}>🚫 免盤</option>
-                </select>`;
-
-            tr.innerHTML = `
-                <td class="drag-handle" title="按住拖拉">☰</td>
-                <td style="text-align:center;"><input type="checkbox" class="row-checkbox" value="${item.id}" onclick="updateBatchDeleteBtn()"></td>
-                <td><label class="photo-upload-label">${photo}<div class="photo-overlay">換圖</div><input type="file" accept="image/*" style="display:none;" onchange="inlinePhotoUpload(event, ${item.id})"></label></td>
-                <td><strong><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productId">${item.productId||''}</div></strong></td>
-                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="productName">${item.productName||''}</div></td>
-                
-                <td>${modeSelectHtml}</td>
-                <td style="color:#8e44ad; font-weight:bold; font-size:0.95rem;"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="assignedGroup">${item.assignedGroup||''}</div></td>
-                
-                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="vendor">${item.vendor||''}</div></td>
-                <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="price">${item.price||0}</div></td>
-                
-                <td class="qty-hl" style="${onsiteStyle}"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantityOnsite">${item.quantityOnsite || 0}</div></td>
-                <td class="qty-hl"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantity">${item.quantity || 0}</div></td>
-                
-                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowZhongxiao">${item.borrowZhongxiao || 0}</div></td>
-                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowApon">${item.borrowApon || 0}</div></td>
-                <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowOther">${item.borrowOther || 0}</div></td>
-                
-                <td class="qty-total" id="totalQty-${item.id}">${qTotal}</td>
-                <td><strong id="totalPrice-${item.id}" style="color:#27ae60;">${fm((item.price||0)*qTotal)}</strong></td>
-                <td><div class="action-buttons"><button class="btn btn-edit" style="padding:6px 10px;" onclick="startEdit(${item.id})">編輯</button><button class="btn btn-danger" style="padding:6px 10px;" onclick="deleteItem(${item.id})">刪除</button></div></td>`;
-            tableBody.appendChild(tr);
-        });
-        initSortable(); initInlineEdit(); 
     }
 
     function exportCSV() {
@@ -603,12 +692,16 @@
         const file = event.target.files[0]; if (!file) return;
         const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
         let item = { ...inventoryData[itemIndex] };
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            item.photo = e.target.result; 
-            try { await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) }); inventoryData[itemIndex] = item; renderTable(); } catch (err) { alert('照片上傳失敗'); }
-        };
-        reader.readAsDataURL(file);
+        
+        // 📸 套用壓縮邏輯
+        compressImage(file, async (compressedData) => {
+            item.photo = compressedData; 
+            try { 
+                await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) }); 
+                inventoryData[itemIndex] = item; 
+                applyAdminFilter(); // 重新渲染當前頁
+            } catch (err) { alert('照片上傳失敗'); }
+        });
     }
 
     function initSortable() {
@@ -617,7 +710,9 @@
             handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost',
             onEnd: async function () {
                 const rows = tableBody.querySelectorAll('tr[data-id]'); const newOrderList = [];
-                rows.forEach((row, index) => { newOrderList.push({ id: parseInt(row.getAttribute('data-id')), sortOrder: index + 1 }); });
+                // 確保排序時加上分頁的 startIndex
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                rows.forEach((row, index) => { newOrderList.push({ id: parseInt(row.getAttribute('data-id')), sortOrder: startIndex + index + 1 }); });
                 try { await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'reorder', items: newOrderList }) }); } catch(e) { alert("儲存排序失敗"); } finally { fetch(API_URL).then(r=>r.json()).then(d => inventoryData = d); }
             }
         });
@@ -642,22 +737,61 @@
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        
+        // 💡 修正編輯表單會丟失隱藏欄位的 Bug
+        const existingItem = editingId ? inventoryData.find(i => i.id === editingId) : {};
+        
         const itemData = {
-            id: editingId ? editingId : Date.now(), orderId: document.getElementById('orderId').value, productId: document.getElementById('productId').value, productName: document.getElementById('productName').value, spec: document.getElementById('spec').value, 
-            auditMode: document.getElementById('auditMode').value, vendor: document.getElementById('vendor').value, purpose: document.getElementById('purpose').value, location: document.getElementById('location').value, price: parseFloat(document.getElementById('price').value) || 0,
-            quantityOnsite: parseInt(document.getElementById('quantityOnsite').value) || 0, quantity: parseInt(document.getElementById('quantity').value) || 0, borrowZhongxiao: parseInt(document.getElementById('borrowZhongxiao').value) || 0, borrowApon: parseInt(document.getElementById('borrowApon').value) || 0, borrowOther: parseInt(document.getElementById('borrowOther').value) || 0, assignedGroup: ''
+            id: editingId ? editingId : Date.now(), 
+            orderId: document.getElementById('orderId').value, 
+            productId: document.getElementById('productId').value, 
+            productName: document.getElementById('productName').value, 
+            spec: document.getElementById('spec').value, 
+            auditMode: document.getElementById('auditMode').value, 
+            vendor: document.getElementById('vendor').value, 
+            purpose: document.getElementById('purpose').value, 
+            location: document.getElementById('location').value, 
+            price: parseFloat(document.getElementById('price').value) || 0,
+            quantityOnsite: parseInt(document.getElementById('quantityOnsite').value) || 0, 
+            quantity: parseInt(document.getElementById('quantity').value) || 0, 
+            borrowZhongxiao: parseInt(document.getElementById('borrowZhongxiao').value) || 0, 
+            borrowApon: parseInt(document.getElementById('borrowApon').value) || 0, 
+            borrowOther: parseInt(document.getElementById('borrowOther').value) || 0, 
+            // 必須保留舊有的這兩個隱藏屬性
+            assignedGroup: existingItem.assignedGroup || '',
+            auditOnsite: existingItem.auditOnsite !== undefined ? existingItem.auditOnsite : null
         };
         itemData.totalPrice = itemData.price * (itemData.quantityOnsite + itemData.quantity + itemData.borrowZhongxiao + itemData.borrowApon + itemData.borrowOther);
+        
         const photoInput = document.getElementById('photo');
         if (photoInput.files && photoInput.files[0]) {
-            const reader = new FileReader(); reader.onload = e => { itemData.photo = e.target.result; saveToServer(itemData); }; reader.readAsDataURL(photoInput.files[0]);
-        } else { itemData.photo = editingId ? currentOriginalPhoto : ''; saveToServer(itemData); }
+            compressImage(photoInput.files[0], (compressedData) => {
+                itemData.photo = compressedData; 
+                saveToServer(itemData); 
+            });
+        } else { 
+            itemData.photo = editingId ? currentOriginalPhoto : ''; 
+            saveToServer(itemData); 
+        }
     });
 
-    async function saveToServer(itemData) { try { await fetch(API_URL, { method: editingId ? 'PUT' : 'POST', headers: getAuthHeaders(), body: JSON.stringify(itemData) }); cancelEdit(); await loadData(); } catch (err) { alert('儲存失敗'); } }
+    async function saveToServer(itemData) { 
+        try { 
+            const res = await fetch(API_URL, { method: editingId ? 'PUT' : 'POST', headers: getAuthHeaders(), body: JSON.stringify(itemData) }); 
+            if(!res.ok) throw new Error();
+            cancelEdit(); await loadData(); 
+        } catch (err) { alert('儲存失敗，請檢查網路'); } 
+    }
+    
     async function deleteItem(id) { if(confirm('確定刪除？')) { await fetch(`${API_URL}?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() }); if (id === editingId) cancelEdit(); await loadData(); } }
-    function startEdit(id) { const item = inventoryData.find(i => i.id === id); if(!item) return; editingId = id; currentOriginalPhoto = item.photo || ''; document.getElementById('orderId').value = item.orderId || ''; document.getElementById('productId').value = item.productId || ''; document.getElementById('productName').value = item.productName || ''; document.getElementById('spec').value = item.spec || ''; document.getElementById('auditMode').value = item.auditMode || 'AI'; document.getElementById('vendor').value = item.vendor || ''; document.getElementById('purpose').value = item.purpose || ''; document.getElementById('location').value = item.location || ''; document.getElementById('price').value = item.price || 0; document.getElementById('quantityOnsite').value = item.quantityOnsite || 0; document.getElementById('quantity').value = item.quantity || 0; document.getElementById('borrowZhongxiao').value = item.borrowZhongxiao || 0; document.getElementById('borrowApon').value = item.borrowApon || 0; document.getElementById('borrowOther').value = item.borrowOther || 0; document.getElementById('formCard').classList.add('edit-mode'); document.getElementById('formTitle').innerText = `✏️ 編輯資料`; document.getElementById('cancelEditBtn').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' }); }
-    function cancelEdit() { editingId = null; currentOriginalPhoto = ''; form.reset(); document.getElementById('formCard').classList.remove('edit-mode'); document.getElementById('formTitle').innerText = '新增進貨/庫存'; document.getElementById('cancelEditBtn').style.display = 'none'; }
+    
+    function startEdit(id) { 
+        const item = inventoryData.find(i => i.id === id); if(!item) return; editingId = id; currentOriginalPhoto = item.photo || ''; 
+        document.getElementById('orderId').value = item.orderId || ''; document.getElementById('productId').value = item.productId || ''; document.getElementById('productName').value = item.productName || ''; document.getElementById('spec').value = item.spec || ''; document.getElementById('auditMode').value = item.auditMode || 'AI'; document.getElementById('vendor').value = item.vendor || ''; document.getElementById('purpose').value = item.purpose || ''; document.getElementById('location').value = item.location || ''; document.getElementById('price').value = item.price || 0; document.getElementById('quantityOnsite').value = item.quantityOnsite || 0; document.getElementById('quantity').value = item.quantity || 0; document.getElementById('borrowZhongxiao').value = item.borrowZhongxiao || 0; document.getElementById('borrowApon').value = item.borrowApon || 0; document.getElementById('borrowOther').value = item.borrowOther || 0; 
+        document.getElementById('formCard').classList.add('edit-mode'); document.getElementById('formTitle').innerText = `✏️ 編輯資料`; document.getElementById('cancelEditBtn').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    }
+    
+    function cancelEdit() { editingId = null; currentOriginalPhoto = ''; form.reset(); document.getElementById('formCard').classList.remove('edit-mode'); document.getElementById('formTitle').innerText = '📝 新增進貨/庫存'; document.getElementById('cancelEditBtn').style.display = 'none'; }
     function toggleSelectAll() { const s=document.getElementById('selectAll'); document.querySelectorAll('.row-checkbox').forEach(cb=>cb.checked=s.checked); updateBatchDeleteBtn(); }
     function updateBatchDeleteBtn() { const c=document.querySelectorAll('.row-checkbox:checked').length; const btn=document.getElementById('batchDeleteBtn'); btn.style.display=c>0?'inline-block':'none'; if(c>0)btn.innerText=`🗑️ 批量刪除 (${c})`; }
     async function batchDelete() { const cb=document.querySelectorAll('.row-checkbox:checked'); const ids=Array.from(cb).map(c=>c.value); if(ids.length===0)return; if(confirm(`確定刪除 ${ids.length} 筆資料嗎？`)){ document.getElementById('batchDeleteBtn').innerText='刪除中...'; await Promise.all(ids.map(id=>fetch(`${API_URL}?id=${id}`,{method:'DELETE',headers:getAuthHeaders()}))); await loadData(); } }
