@@ -41,11 +41,14 @@
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
         .card.edit-mode { border: 2px solid var(--edit-color); box-shadow: 0 0 20px rgba(243, 156, 18, 0.15); }
         
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        /* 💡 儀表板排版修改，加入第四格 */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        @media (min-width: 992px) { .dashboard-grid { grid-template-columns: repeat(4, 1fr); } }
         .stat-box { padding: 20px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .stat-box.blue { background: linear-gradient(135deg, var(--secondary-color), #2980b9); }
         .stat-box.green { background: linear-gradient(135deg, #27ae60, #2ecc71); }
         .stat-box.orange { background: linear-gradient(135deg, #e67e22, #f39c12); }
+        .stat-box.red { background: linear-gradient(135deg, #e74c3c, #c0392b); } /* 新增紅色損耗格 */
         .stat-title { font-size: 1rem; font-weight: 600; margin-bottom: 10px; opacity: 0.9; }
         .stat-value { font-size: 2rem; font-weight: bold; margin: 0; }
         
@@ -77,16 +80,15 @@
         .btn-cancel { background-color: var(--cancel-color); color: white; display: none; }
         .btn-import { background-color: var(--import-color); color: white; }
         
-        /* 📱 響應式表格 */
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; box-shadow: inset 0 0 5px rgba(0,0,0,0.02); }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 0.95rem; }
-        th, td { padding: 14px 10px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        th, td { padding: 14px 8px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
         th { background-color: #f1f3f5; color: var(--primary-color); font-weight: 700; position: sticky; top: 0; z-index: 10; }
         tr:hover { background-color: #fdfefe; }
         .row-checkbox, #selectAll { transform: scale(1.4); cursor: pointer; margin: 0; }
         .drag-handle { cursor: grab; font-size: 1.5rem; color: #bdc3c7; text-align: center; }
         
-        .editable-cell { cursor: text; border: 1px solid transparent; border-radius: 6px; padding: 8px 10px; transition: 0.2s; background-color: transparent; min-width: 40px; text-align: center; font-size: 1rem;}
+        .editable-cell { cursor: text; border: 1px solid transparent; border-radius: 6px; padding: 8px 6px; transition: 0.2s; background-color: transparent; min-width: 30px; text-align: center; font-size: 1rem;}
         .editable-cell:hover { border-color: var(--secondary-color); background-color: #f4f6f9; }
         .editable-cell:focus { outline: none; border-color: #2ecc71; background-color: #fff; box-shadow: 0 0 8px rgba(46, 204, 113, 0.3); }
         
@@ -97,12 +99,12 @@
         
         .qty-hl { color: var(--secondary-color); font-weight: bold; }
         .qty-borrow { color: var(--borrow-color); font-weight: bold; }
+        .qty-broken { color: #e74c3c; font-weight: bold; } /* 💡 破損樣式 */
         .qty-total { color: #d35400; font-weight: bold; font-size: 1.1rem; }
         .empty-state { text-align: center; padding: 40px; color: #7f8c8d; font-style: italic; font-size: 1.1rem; }
         
         .action-buttons { display: flex; gap: 8px; justify-content: center; }
         
-        /* 📱 響應式 Modal */
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(3px); overflow-y: auto; padding: 20px;}
         .modal-content { background-color: #fff; margin: auto; padding: 30px 20px; border-radius: 12px; width: 100%; max-width: 800px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); position: relative; top: 50%; transform: translateY(-50%); max-height: 90vh; overflow-y: auto; }
         @media (max-width: 768px) { .modal-content { top: 5%; transform: none; margin-bottom: 5%; } }
@@ -127,7 +129,6 @@
         .sortable-header { cursor: pointer; transition: 0.2s; user-select: none; }
         .sortable-header:hover { background-color: #e5e8e8; color: #8e44ad; }
         
-        /* 💡 新增：分頁器樣式 */
         .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 25px; flex-wrap: wrap; }
         .pagination button { padding: 8px 16px; background-color: white; border: 1px solid var(--primary-color); color: var(--primary-color); border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .pagination button:hover:not(:disabled) { background-color: var(--primary-color); color: white; }
@@ -203,6 +204,8 @@
             <div class="stat-box green"><div class="stat-title">總庫存價值 (NT$)</div><div class="stat-value" id="statTotalValue">$0</div></div>
             <div class="stat-box blue"><div class="stat-title">總產品品項 (SKU)</div><div class="stat-value" id="statTotalSKU">0</div></div>
             <div class="stat-box orange"><div class="stat-title">所有總計件數</div><div class="stat-value" id="statTotalQty">0</div></div>
+            <!-- 💡 新增總損耗金額顯示 -->
+            <div class="stat-box red"><div class="stat-title">本期破損損耗 (NT$)</div><div class="stat-value" id="statTotalLoss">$0</div></div>
         </div>
         <div class="charts-container">
             <div class="chart-box"><canvas id="vendorChart"></canvas></div>
@@ -268,6 +271,9 @@
                 <div class="form-group"><label style="color:var(--borrow-color);">忠孝外借</label><input type="number" id="borrowZhongxiao" min="0" value="0" required></div>
                 <div class="form-group"><label style="color:var(--borrow-color);">艾朋外借</label><input type="number" id="borrowApon" min="0" value="0" required></div>
                 <div class="form-group"><label style="color:var(--borrow-color);">其他外借</label><input type="number" id="borrowOther" min="0" value="0" required></div>
+                
+                <!-- 💡 表單新增：手動調整破損累計 -->
+                <div class="form-group"><label style="color:#e74c3c;">破損累計</label><input type="number" id="brokenCount" min="0" value="0" required></div>
             </div>
             <div class="form-actions">
                 <button type="button" class="btn btn-cancel" id="cancelEditBtn" onclick="cancelEdit()">取消編輯</button>
@@ -280,7 +286,6 @@
         <div class="header-actions">
             <h2 class="card-title">📦 目前庫存總覽</h2>
             <div class="header-actions-right">
-                <!-- 💡 新增：表格搜尋框，讓找商品變快 -->
                 <input type="text" id="adminSearchInput" class="search-box" placeholder="🔍 搜尋編號、品名、廠商...">
                 <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 刪除</button>
                 <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出</button>
@@ -298,8 +303,11 @@
                         <th>盤點模式</th>
                         <th style="color:#8e44ad; text-decoration:underline;" class="sortable-header" onclick="sortByAssignedGroup()" title="點擊切換排序">負責組別 ↕</th>
                         <th>廠商</th><th>單價</th>
+                        
                         <th style="color:var(--secondary-color);">現場</th><th>倉庫</th>
                         <th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他</th>
+                        <th style="color:#e74c3c;">破損累計</th> <!-- 💡 表格新增：破損欄位 -->
+                        
                         <th style="color:#d35400;">總數</th><th>總價</th>
                         <th style="text-align:center;">操作</th>
                     </tr>
@@ -308,7 +316,6 @@
             </table>
         </div>
         
-        <!-- 💡 新增：分頁控制器，提升載入速度 -->
         <div class="pagination" id="adminPagination">
             <button id="prevPageBtn" onclick="changePage(-1)">上一頁</button>
             <span id="pageInfo" class="page-info">第 1 頁</span>
@@ -326,7 +333,7 @@
 <script>
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
     let inventoryData = [];
-    let filteredData = []; // 💡 分頁與搜尋用的陣列
+    let filteredData = []; 
     let editingId = null; 
     let currentOriginalPhoto = ''; 
     const form = document.getElementById('inventoryForm');
@@ -334,7 +341,6 @@
     let vendorChartInstance = null; let valueChartInstance = null; let sortableInstance = null;
     let isSortedByGroup = false; 
     
-    // 💡 分頁設定
     let currentPage = 1;
     let itemsPerPage = 50;
 
@@ -356,21 +362,20 @@
     function logout() { sessionStorage.removeItem('adminToken'); location.reload(); }
     function getAuthHeaders() { return { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }; }
 
-    // 📸 核心升級：前端照片自動壓縮函數
     function compressImage(file, callback) {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_SIZE = 800; // 最大邊長 800px，保證畫質又輕量
+                const MAX_SIZE = 800; 
                 let width = img.width; let height = img.height;
                 if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } 
                 else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
                 canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                callback(canvas.toDataURL('image/jpeg', 0.7)); // 轉換為 70% 品質 JPEG
+                callback(canvas.toDataURL('image/jpeg', 0.7)); 
             };
             img.src = e.target.result;
         };
@@ -378,16 +383,15 @@
     }
 
     async function loadData() {
-        tableBody.innerHTML = '<tr><td colspan="17" style="text-align:center; padding: 40px; font-size: 1.2rem; color: #7f8c8d;">載入資料中... ☁️</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="18" style="text-align:center; padding: 40px; font-size: 1.2rem; color: #7f8c8d;">載入資料中... ☁️</td></tr>';
         try {
             const res = await fetch(API_URL); inventoryData = await res.json();
             isSortedByGroup = false; 
-            applyAdminFilter(); // 取代原本的 renderTable，改為先過濾再渲染分頁
+            applyAdminFilter(); 
             renderDashboard(); checkAudits();
-        } catch(e) { tableBody.innerHTML = '<tr><td colspan="17" style="text-align:center; color: red;">資料載入失敗，請檢查網路</td></tr>'; }
+        } catch(e) { tableBody.innerHTML = '<tr><td colspan="18" style="text-align:center; color: red;">資料載入失敗，請檢查網路</td></tr>'; }
     }
 
-    // 💡 搜尋與過濾邏輯
     function applyAdminFilter() {
         const query = document.getElementById('adminSearchInput').value.toLowerCase();
         filteredData = inventoryData.filter(item => {
@@ -396,7 +400,6 @@
             return text.includes(query);
         });
 
-        // 重新套用排序狀態
         if (!isSortedByGroup) {
             filteredData.sort((a, b) => {
                 const orderA = a.sortOrder || Number.MAX_SAFE_INTEGER;
@@ -408,13 +411,12 @@
             filteredData.sort((a, b) => (a.assignedGroup || 'ZZZ').localeCompare(b.assignedGroup || 'ZZZ'));
         }
 
-        currentPage = 1; // 搜尋後回到第一頁
+        currentPage = 1; 
         renderTable();
     }
 
     document.getElementById('adminSearchInput').addEventListener('input', applyAdminFilter);
 
-    // 💡 分頁渲染邏輯：解決載入過多卡頓的問題
     function renderTable() {
         tableBody.innerHTML = '';
         
@@ -429,7 +431,7 @@
         const startIndex = (currentPage - 1) * itemsPerPage;
         const pageData = filteredData.slice(startIndex, startIndex + itemsPerPage);
 
-        if (pageData.length === 0) return tableBody.innerHTML = '<tr><td colspan="17" class="empty-state">目前沒有符合的資料</td></tr>';
+        if (pageData.length === 0) return tableBody.innerHTML = '<tr><td colspan="18" class="empty-state">目前沒有符合的資料</td></tr>';
         
         pageData.forEach(item => {
             const tr = document.createElement('tr'); tr.setAttribute('data-id', item.id);
@@ -466,6 +468,9 @@
                 <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowApon">${item.borrowApon || 0}</div></td>
                 <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowOther">${item.borrowOther || 0}</div></td>
                 
+                <!-- 💡 表格顯示破損數 -->
+                <td class="qty-broken"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="brokenCount">${item.brokenCount || 0}</div></td>
+
                 <td class="qty-total" id="totalQty-${item.id}">${qTotal}</td>
                 <td><strong id="totalPrice-${item.id}" style="color:#27ae60;">${fm((item.price||0)*qTotal)}</strong></td>
                 <td><div class="action-buttons"><button class="btn btn-edit" style="padding:6px 10px;" onclick="startEdit(${item.id})">編輯</button><button class="btn btn-danger" style="padding:6px 10px;" onclick="deleteItem(${item.id})">刪除</button></div></td>`;
@@ -480,7 +485,6 @@
     function changePage(dir) { 
         currentPage += dir; 
         renderTable(); 
-        // 切換頁面時自動滾動回表格頂端
         const tableOffset = document.querySelector('.table-responsive').offsetTop;
         window.scrollTo({ top: tableOffset - 50, behavior: 'smooth' }); 
     }
@@ -588,11 +592,7 @@
     }
 
     function sortByAssignedGroup() {
-        if (!isSortedByGroup) {
-            isSortedByGroup = true;
-        } else {
-            isSortedByGroup = false;
-        }
+        if (!isSortedByGroup) { isSortedByGroup = true; } else { isSortedByGroup = false; }
         applyAdminFilter();
     }
 
@@ -652,7 +652,8 @@
 
     function exportCSV() {
         if (inventoryData.length === 0) { alert("沒有資料可以匯出！"); return; }
-        const csvData = inventoryData.map(item => ({ "系統ID": item.id || "", "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "", "盤點模式": item.auditMode || "AI", "負責組別": item.assignedGroup || "", "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "", "單價": item.price || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0, "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0, "照片資料": item.photo || "" }));
+        // 💡 匯出加入破損欄位
+        const csvData = inventoryData.map(item => ({ "系統ID": item.id || "", "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "", "盤點模式": item.auditMode || "AI", "負責組別": item.assignedGroup || "", "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "", "單價": item.price || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0, "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0, "破損累計": item.brokenCount || 0, "照片資料": item.photo || "" }));
         const csvContent = "\uFEFF" + Papa.unparse(csvData, { header: true });
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
@@ -675,12 +676,15 @@
         const id = parseInt(cellElement.dataset.id); const field = cellElement.dataset.field;
         const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
         let item = { ...inventoryData[itemIndex] };
-        if (['price', 'quantityOnsite', 'quantity', 'borrowZhongxiao', 'borrowApon', 'borrowOther'].includes(field)) {
+        
+        // 💡 確保改到破損數量也能存入
+        if (['price', 'quantityOnsite', 'quantity', 'borrowZhongxiao', 'borrowApon', 'borrowOther', 'brokenCount'].includes(field)) {
             let num = parseFloat(newValue) || 0; item[field] = num; cellElement.innerText = num; 
             const totalQ = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0);
             item.totalPrice = item.price * totalQ;
             document.getElementById(`totalQty-${id}`).innerText = totalQ; document.getElementById(`totalPrice-${id}`).innerText = '$' + item.totalPrice.toLocaleString();
         } else { item[field] = newValue; }
+        
         cellElement.style.backgroundColor = '#fcf3cf';
         try {
             await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
@@ -693,13 +697,12 @@
         const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
         let item = { ...inventoryData[itemIndex] };
         
-        // 📸 套用壓縮邏輯
         compressImage(file, async (compressedData) => {
             item.photo = compressedData; 
             try { 
                 await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) }); 
                 inventoryData[itemIndex] = item; 
-                applyAdminFilter(); // 重新渲染當前頁
+                applyAdminFilter(); 
             } catch (err) { alert('照片上傳失敗'); }
         });
     }
@@ -710,7 +713,6 @@
             handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost',
             onEnd: async function () {
                 const rows = tableBody.querySelectorAll('tr[data-id]'); const newOrderList = [];
-                // 確保排序時加上分頁的 startIndex
                 const startIndex = (currentPage - 1) * itemsPerPage;
                 rows.forEach((row, index) => { newOrderList.push({ id: parseInt(row.getAttribute('data-id')), sortOrder: startIndex + index + 1 }); });
                 try { await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'reorder', items: newOrderList }) }); } catch(e) { alert("儲存排序失敗"); } finally { fetch(API_URL).then(r=>r.json()).then(d => inventoryData = d); }
@@ -720,12 +722,23 @@
 
     function renderDashboard() {
         if (inventoryData.length === 0) { document.getElementById('dashboardCard').style.display = 'none'; return; }
-        document.getElementById('dashboardCard').style.display = 'block'; let totalValue = 0; let totalQty = 0; let vendorCounts = {};
+        document.getElementById('dashboardCard').style.display = 'block'; 
+        let totalValue = 0; let totalQty = 0; let vendorCounts = {}; let totalLoss = 0; // 💡 總損耗變數
+        
         inventoryData.forEach(item => {
             const sumQty = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0); 
-            totalValue += (item.price || 0) * sumQty; totalQty += sumQty; const vendor = item.vendor || '未登記廠商'; vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
+            totalValue += (item.price || 0) * sumQty; 
+            totalQty += sumQty; 
+            totalLoss += (item.price || 0) * (item.brokenCount || 0); // 💡 計算損失金額
+            const vendor = item.vendor || '未登記廠商'; 
+            vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
         });
-        document.getElementById('statTotalValue').innerText = '$' + totalValue.toLocaleString(); document.getElementById('statTotalSKU').innerText = inventoryData.length.toLocaleString(); document.getElementById('statTotalQty').innerText = totalQty.toLocaleString();
+        
+        document.getElementById('statTotalValue').innerText = '$' + totalValue.toLocaleString(); 
+        document.getElementById('statTotalSKU').innerText = inventoryData.length.toLocaleString(); 
+        document.getElementById('statTotalQty').innerText = totalQty.toLocaleString();
+        document.getElementById('statTotalLoss').innerText = '$' + totalLoss.toLocaleString(); // 💡 顯示損失金額
+        
         const ctxVendor = document.getElementById('vendorChart').getContext('2d');
         if (vendorChartInstance) vendorChartInstance.destroy(); 
         vendorChartInstance = new Chart(ctxVendor, { type: 'doughnut', data: { labels: Object.keys(vendorCounts), datasets: [{ data: Object.values(vendorCounts), backgroundColor: ['#3498db', '#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e', '#e67e22'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
@@ -738,7 +751,6 @@
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        // 💡 修正編輯表單會丟失隱藏欄位的 Bug
         const existingItem = editingId ? inventoryData.find(i => i.id === editingId) : {};
         
         const itemData = {
@@ -757,7 +769,7 @@
             borrowZhongxiao: parseInt(document.getElementById('borrowZhongxiao').value) || 0, 
             borrowApon: parseInt(document.getElementById('borrowApon').value) || 0, 
             borrowOther: parseInt(document.getElementById('borrowOther').value) || 0, 
-            // 必須保留舊有的這兩個隱藏屬性
+            brokenCount: parseInt(document.getElementById('brokenCount').value) || 0, // 💡 新增破損數
             assignedGroup: existingItem.assignedGroup || '',
             auditOnsite: existingItem.auditOnsite !== undefined ? existingItem.auditOnsite : null
         };
@@ -788,6 +800,7 @@
     function startEdit(id) { 
         const item = inventoryData.find(i => i.id === id); if(!item) return; editingId = id; currentOriginalPhoto = item.photo || ''; 
         document.getElementById('orderId').value = item.orderId || ''; document.getElementById('productId').value = item.productId || ''; document.getElementById('productName').value = item.productName || ''; document.getElementById('spec').value = item.spec || ''; document.getElementById('auditMode').value = item.auditMode || 'AI'; document.getElementById('vendor').value = item.vendor || ''; document.getElementById('purpose').value = item.purpose || ''; document.getElementById('location').value = item.location || ''; document.getElementById('price').value = item.price || 0; document.getElementById('quantityOnsite').value = item.quantityOnsite || 0; document.getElementById('quantity').value = item.quantity || 0; document.getElementById('borrowZhongxiao').value = item.borrowZhongxiao || 0; document.getElementById('borrowApon').value = item.borrowApon || 0; document.getElementById('borrowOther').value = item.borrowOther || 0; 
+        document.getElementById('brokenCount').value = item.brokenCount || 0; // 💡 編輯帶入破損數
         document.getElementById('formCard').classList.add('edit-mode'); document.getElementById('formTitle').innerText = `✏️ 編輯資料`; document.getElementById('cancelEditBtn').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' }); 
     }
     
@@ -806,16 +819,17 @@
                 results.data.forEach((row, index) => {
                     if (!row['產品編號'] && !row['品名']) return;
                     const price = parseFloat(row['單價']) || 0; const qOnsite = parseInt(row['現場庫存']) || 0; const qWarehouse = parseInt(row['倉庫庫存']) || parseInt(row['數量']) || 0; const qBZ = parseInt(row['忠孝外借']) || 0; const qBA = parseInt(row['艾朋外借']) || 0; const qBO = parseInt(row['其他外借']) || 0;
+                    const bCount = parseInt(row['破損累計']) || 0; // 💡 導入破損數
                     const tQty = qOnsite + qWarehouse + qBZ + qBA + qBO;
                     let isUpdate = false; let targetId = null; let originalPhoto = ''; let originalGroup = ''; let originalAudit = null; let originalMode = 'AI';
                     if (row['系統ID']) { const existing = inventoryData.find(i => String(i.id) === String(row['系統ID'])); if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; originalGroup = existing.assignedGroup || ''; originalAudit = existing.auditOnsite; originalMode = existing.auditMode || 'AI'; } }
                     if (!isUpdate && row['產品編號']) { const existing = inventoryData.find(i => String(i.productId) === String(row['產品編號'])); if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; originalGroup = existing.assignedGroup || ''; originalAudit = existing.auditOnsite; originalMode = existing.auditMode || 'AI'; } }
                     if (isUpdate) { updateCount++; } else { insertCount++; targetId = Date.now() + index; }
-                    upsertData.push({ isUpdate: isUpdate, id: targetId, photo: row['照片資料'] || originalPhoto, orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, totalPrice: price * tQty, assignedGroup: row['負責組別'] || originalGroup, auditMode: row['盤點模式'] || originalMode, auditOnsite: originalAudit });
+                    upsertData.push({ isUpdate: isUpdate, id: targetId, photo: row['照片資料'] || originalPhoto, orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, brokenCount: bCount, totalPrice: price * tQty, assignedGroup: row['負責組別'] || originalGroup, auditMode: row['盤點模式'] || originalMode, auditOnsite: originalAudit });
                 });
                 if (upsertData.length === 0) return alert("沒有找到有效的資料列！");
                 if (!confirm(`🔍 將執行以下操作：\n🔄 覆蓋更新：${updateCount} 筆\n✨ 全新建立：${insertCount} 筆\n\n確定執行導入？`)) { e.target.value = ''; return; }
-                try { tableBody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 40px;">處理中...</td></tr>`; await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'batchUpsert', items: upsertData }) }); alert(`✅ 成功導入 ${upsertData.length} 筆資料！`); await loadData(); } catch (error) { alert("發生錯誤。"); await loadData(); } e.target.value = ''; 
+                try { tableBody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding: 40px;">處理中...</td></tr>`; await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'batchUpsert', items: upsertData }) }); alert(`✅ 成功導入 ${upsertData.length} 筆資料！`); await loadData(); } catch (error) { alert("發生錯誤。"); await loadData(); } e.target.value = ''; 
             }
         });
     });
