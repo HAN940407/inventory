@@ -159,10 +159,10 @@
         </div>
     </div>
 
-    <!-- 智能派單動畫 Modal -->
+    <!-- 系統自動派單運算動畫 Modal -->
     <div id="assignmentProcessModal" class="modal" style="z-index: 3000;">
         <div class="modal-content" style="max-width: 450px; text-align: center; padding: 40px 20px;">
-            <h2 style="color: #8e44ad; margin-top:0; margin-bottom: 25px; font-size: 1.8rem;">🎲 AI 智能派單運算中</h2>
+            <h2 style="color: #8e44ad; margin-top:0; margin-bottom: 25px; font-size: 1.8rem;">🎲 系統派單運算中</h2>
             <div class="spinner" id="processSpinner"></div>
             <p id="assignStatusText" style="font-size: 1.1rem; font-weight: bold; color: #2c3e50; height: 30px; margin-top: 25px;">準備啟動演算法...</p>
             <div style="width: 100%; background: #eee; border-radius: 10px; height: 14px; margin-top: 20px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
@@ -214,9 +214,9 @@
 
     <div class="card">
         <div class="header-actions">
-            <h2 class="card-title">🎲 智能盤點派單</h2>
+            <h2 class="card-title">🎲 系統自動派單</h2>
         </div>
-        <p style="color:#7f8c8d; font-size:0.95rem; margin-top:-10px; margin-bottom:15px;">系統將根據<strong style="color:#e74c3c;">權重比例 (正職 5 : PT 1)</strong> 分配「🤖 AI 自動」品項。<br><strong>(現場數量為 0 的品項將自動跳過不分配)</strong></p>
+        <p style="color:#7f8c8d; font-size:0.95rem; margin-top:-10px; margin-bottom:15px;">系統將根據<strong style="color:#e74c3c;">權重比例 (正職 5 : PT 1)</strong> 分配「🤖 自動分配」品項。<br><strong>(現場數量為 0 的品項將自動跳過不分配)</strong></p>
         <div class="assign-block">
             <div class="assign-grid">
                 <div>
@@ -236,7 +236,7 @@
                     </div>
                 </div>
             </div>
-            <button id="assignBtn" class="btn btn-primary" style="width:100%; background:#8e44ad; font-size:1.2rem; padding:15px;" onclick="startSmartAssignmentAnimation()">🚀 執行智能打亂派單</button>
+            <button id="assignBtn" class="btn btn-primary" style="width:100%; background:#8e44ad; font-size:1.2rem; padding:15px;" onclick="startAssignmentAnimation()">🚀 執行自動打亂派單</button>
         </div>
     </div>
 
@@ -254,7 +254,7 @@
                 <div class="form-group">
                     <label>盤點模式</label>
                     <select id="auditMode">
-                        <option value="AI">🤖 AI 自動</option>
+                        <option value="AI">🤖 自動分配</option>
                         <option value="MANUAL">🔒 手動指派</option>
                         <option value="SKIP">🚫 免盤點</option>
                     </select>
@@ -284,7 +284,6 @@
         <div class="header-actions">
             <h2 class="card-title">📦 目前庫存總覽</h2>
             <div class="header-actions-right">
-                <!-- 💡 升級版全欄位搜尋框 -->
                 <input type="text" id="adminSearchInput" class="search-box" placeholder="🔍 搜尋編號、品名、廠商、用途、位置...">
                 <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 刪除</button>
                 <button class="btn btn-optimize" onclick="optimizeOldPhotos()" id="optimizeBtn" title="壓縮之前上傳的過大照片">🚀 最佳化舊照片加速</button>
@@ -439,12 +438,10 @@
         } catch(e) { tableBody.innerHTML = '<tr><td colspan="19" style="text-align:center; color: red;">資料載入失敗，請檢查網路</td></tr>'; }
     }
 
-    // 💡 升級版全欄位搜尋邏輯
     function applyAdminFilter() {
         const query = document.getElementById('adminSearchInput').value.toLowerCase();
         filteredData = inventoryData.filter(item => {
             if (!query) return true;
-            // 組合所有需要被搜尋的欄位
             const text = [
                 item.productId, item.productName, item.vendor, 
                 item.assignedGroup, item.purpose, item.location, 
@@ -496,9 +493,9 @@
             const currentMode = item.auditMode || 'AI';
             const modeSelectHtml = `
                 <select id="modeSelect-${item.id}" class="mode-select mode-${currentMode}" onchange="changeAuditMode(${item.id}, this.value)">
-                    <option value="AI" ${currentMode === 'AI' ? 'selected' : ''}>🤖 自動</option>
-                    <option value="MANUAL" ${currentMode === 'MANUAL' ? 'selected' : ''}>🔒 手動</option>
-                    <option value="SKIP" ${currentMode === 'SKIP' ? 'selected' : ''}>🚫 免盤</option>
+                    <option value="AI" ${currentMode === 'AI' ? 'selected' : ''}>🤖 自動分配</option>
+                    <option value="MANUAL" ${currentMode === 'MANUAL' ? 'selected' : ''}>🔒 手動指派</option>
+                    <option value="SKIP" ${currentMode === 'SKIP' ? 'selected' : ''}>🚫 免盤點</option>
                 </select>`;
 
             tr.innerHTML = `
@@ -549,7 +546,7 @@
         renderTable(); 
     }
 
-    async function startSmartAssignmentAnimation() {
+    async function startAssignmentAnimation() {
         const regInput = document.getElementById('regNames').value.trim();
         const ptInput = document.getElementById('ptNames').value.trim();
         const regGroupsCount = parseInt(document.getElementById('regGroups').value) || 1;
@@ -584,7 +581,7 @@
                                    .sort((a,b) => (b.quantityOnsite||0) - (a.quantityOnsite||0));
         let zeroItems = aiItems.filter(item => (item.quantityOnsite || 0) <= 0);
         
-        if(itemsToAssign.length === 0) return alert("目前沒有「現場數量大於 0」且設定為「🤖 AI 自動」的品項可以分配！");
+        if(itemsToAssign.length === 0) return alert("目前沒有「現場數量大於 0」且設定為「🤖 自動分配」的品項可以分配！");
 
         itemsToAssign.forEach(item => {
             groups.sort((a,b) => {
@@ -610,7 +607,7 @@
         modal.style.display = 'block'; spinner.style.display = 'block'; progressBar.style.width = "0%";
         document.getElementById('assignBtn').disabled = true;
 
-        const stages = [ "📥 讀取並過濾手動與免盤點品項...", "🔀 徹底打亂人員與商品...", "⚙️ 剃除現場數量為 0 之品項...", "🧠 AI 綜合防呆平衡演算法啟動..." ];
+        const stages = [ "📥 讀取並過濾手動與免盤點品項...", "🔀 徹底打亂人員與商品...", "⚙️ 剃除現場數量為 0 之品項...", "⚙️ 綜合防呆平衡邏輯啟動..." ];
         let stageIdx = 0;
         const prepInterval = setInterval(() => {
             if (stageIdx < stages.length) {
@@ -634,7 +631,7 @@
                             statusText.innerText = "✅ 派單完成！"; statusText.style.color = "#27ae60";
                             setTimeout(() => {
                                 modal.style.display = 'none';
-                                alert(`✅ 智能派單完成！\n共分配了 ${itemsToAssign.length} 個需要盤點的項目。\n(自動跳過了 ${zeroItems.length} 個庫存為 0 的品項)`);
+                                alert(`✅ 自動派單完成！\n共分配了 ${itemsToAssign.length} 個需要盤點的項目。\n(自動跳過了 ${zeroItems.length} 個庫存為 0 的品項)`);
                                 document.getElementById('assignBtn').disabled = false; statusText.style.color = "#2c3e50"; 
                                 loadData();
                             }, 800);
