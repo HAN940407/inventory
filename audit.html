@@ -15,8 +15,14 @@
         
         #mainContainer { display: none; max-width: 600px; margin: 0 auto; padding-bottom: 50px;}
         
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; background: white; padding: 6px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .tab-btn { flex: 1; padding: 12px 0; border: none; background: transparent; font-size: 1.05rem; font-weight: bold; color: #7f8c8d; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        .tab-btn.active { background: var(--secondary-color); color: white; }
+        .tab-btn.active.red { background: #e74c3c; color: white; }
+
         .header { text-align: center; margin-bottom: 20px; }
         .search-input { width: 100%; padding: 12px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; box-sizing: border-box; margin-bottom: 20px; outline:none;}
+        .search-input.red-border { border-color: #e74c3c; }
         
         .card { background: white; border-radius: 10px; padding: 15px; display: flex; gap: 15px; margin-bottom: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); align-items: center;}
         .card-img { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; background: #eee; }
@@ -34,6 +40,9 @@
         .audit-btn.done-correct { background: #27ae60; cursor: default; }
         .audit-btn.done-diff { background: #f39c12; cursor: default; }
         
+        .broken-btn { background: #e74c3c; }
+        .broken-btn:hover { background: #c0392b; }
+
         @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } }
     </style>
 </head>
@@ -60,10 +69,14 @@
 </div>
 
 <div id="mainContainer">
+    <div class="nav-tabs">
+        <button id="tab-audit" class="tab-btn active" onclick="switchMode('audit')">📝 盤點任務</button>
+        <button id="tab-broken" class="tab-btn" onclick="switchMode('broken')">💥 破損回報</button>
+    </div>
+
     <div class="header">
         <h2 style="color:var(--primary-color); margin-bottom:5px;" id="headerTitle">📝 載入中...</h2>
         <p style="color:#7f8c8d; font-size:0.9rem; margin-top:0; line-height:1.6;" id="headerDesc">請確實點算現場實際數量</p>
-        <!-- 💡 更新了搜尋框提示 -->
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋編號、品名、位置、用途、規格...">
     </div>
     <div id="listContainer"></div>
@@ -74,6 +87,7 @@
     let inventoryData = [];
     let selectedGroup = '';
     let warnedItems = new Set();
+    let currentMode = 'audit';
 
     async function checkPassword() {
         const input = document.getElementById('passwordInput').value;
@@ -96,7 +110,7 @@
             const select = document.getElementById('groupSelect');
             
             if (groups.length === 0) {
-                alert("目前沒有任何已指派的盤點任務！");
+                alert("目前沒有任何已指派的盤點任務！\n(您仍可進入系統進行破損回報)");
             } else {
                 groups.forEach(g => {
                     const option = document.createElement('option');
@@ -110,48 +124,88 @@
     function startAudit() {
         const select = document.getElementById('groupSelect');
         selectedGroup = select.value;
-        if (!selectedGroup) return alert("請先選擇組別！");
         
         document.getElementById('groupSelectScreen').style.display = 'none';
         document.getElementById('mainContainer').style.display = 'block';
-        document.getElementById('headerTitle').innerText = `📝 ${selectedGroup}`;
-        renderList();
+        switchMode('audit');
     }
 
+    // 💡 進度條更新邏輯：移除「已盤」，僅顯示「應盤總數」
     function updateProgress() {
-        if(!selectedGroup) return;
+        if(currentMode !== 'audit' || !selectedGroup) return;
+        
         const myAllItems = inventoryData.filter(item => (item.assignedGroup || '').trim() === selectedGroup && item.auditMode !== 'SKIP');
+        
+        // 計算「目標應盤總件數」
         const targetTotalQty = myAllItems.reduce((sum, item) => sum + (item.quantityOnsite || 0), 0);
-        const doneTotalQty = myAllItems.reduce((sum, item) => {
-            if (item.auditOnsite !== null && item.auditOnsite !== undefined) {
-                return sum + parseInt(item.auditOnsite);
-            }
-            return sum;
-        }, 0);
-
+        
+        // 判斷是否所有品項都送出了 (用來變更綠色背景)
         const allSubmitted = myAllItems.length > 0 && myAllItems.every(i => i.auditOnsite !== null && i.auditOnsite !== undefined);
-        let progressStyle = allSubmitted ? "background:#d5f5e3; color:#27ae60;" : "background:#ebf5fb; color:#2980b9;";
+        
+        let progressStyle = allSubmitted 
+            ? "background:#d5f5e3; color:#27ae60;" 
+            : "background:#ebf5fb; color:#2980b9;";
+            
+        let statusText = allSubmitted 
+            ? `✅ 任務完成！應盤總數：${targetTotalQty} 件` 
+            : `📊 應盤總數：${targetTotalQty} 件`;
 
         document.getElementById('headerDesc').innerHTML = `請確實點算現場實際數量<br>
             <span style="display:inline-block; margin-top:10px; padding:6px 16px; border-radius:20px; font-weight:bold; font-size:1.05rem; box-shadow:0 2px 5px rgba(0,0,0,0.05); ${progressStyle}">
-                📊 總數量進度：已盤 ${doneTotalQty} 件 / 應盤 ${targetTotalQty} 件
+                ${statusText}
             </span>`;
     }
 
+    function switchMode(mode) {
+        currentMode = mode;
+        const searchInput = document.getElementById('searchInput');
+        
+        if (mode === 'audit') {
+            document.getElementById('tab-audit').className = 'tab-btn active';
+            document.getElementById('tab-broken').className = 'tab-btn';
+            document.getElementById('headerTitle').innerText = selectedGroup ? `📝 ${selectedGroup}` : '📝 尚未選擇組別';
+            searchInput.className = 'search-input';
+            searchInput.placeholder = '🔍 搜尋編號、品名、位置、用途、規格...';
+        } else {
+            document.getElementById('tab-audit').className = 'tab-btn';
+            document.getElementById('tab-broken').className = 'tab-btn active red';
+            document.getElementById('headerTitle').innerText = '💥 全店破損回報區';
+            document.getElementById('headerTitle').style.color = '#e74c3c';
+            document.getElementById('headerDesc').innerText = '搜尋全店商品並回報，將直接扣除庫存';
+            searchInput.className = 'search-input red-border';
+            searchInput.placeholder = '🔍 搜尋全店要回報破損的商品...';
+        }
+        searchInput.value = ''; 
+        renderList();
+    }
+
     function renderList() {
-        updateProgress();
+        if (currentMode === 'audit') updateProgress(); 
+        
         const query = document.getElementById('searchInput').value.toLowerCase();
         const list = document.getElementById('listContainer');
         list.innerHTML = '';
         
-        const myItems = inventoryData.filter(item => (item.assignedGroup || '').trim() === selectedGroup && item.auditMode !== 'SKIP');
-        
-        if (myItems.length === 0) {
-            return list.innerHTML = '<p style="text-align:center; color:#7f8c8d; padding:30px;">此組別目前沒有待盤點項目。</p>';
+        let displayItems = [];
+
+        if (currentMode === 'audit') {
+            if (!selectedGroup) {
+                return list.innerHTML = '<p style="text-align:center; color:#e74c3c; font-weight:bold;">您沒有選擇組別！請重新登入或切換至破損回報。</p>';
+            }
+            displayItems = inventoryData.filter(item => (item.assignedGroup || '').trim() === selectedGroup && item.auditMode !== 'SKIP');
+            if (displayItems.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#7f8c8d; padding:30px;">太棒了！此組別目前沒有待盤點項目。</p>';
+                return;
+            }
+        } else {
+            displayItems = inventoryData;
+            if (query === '') {
+                list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:1.1rem; padding:30px;">請在上方輸入關鍵字尋找破損的商品<br>📦 全店商品皆可搜尋</p>';
+                return;
+            }
         }
 
-        // 💡 升級版全欄位搜尋
-        myItems.filter(item => {
+        displayItems.filter(item => {
             if (!query) return true;
             const text = [
                 item.productId, item.productName, item.location, 
@@ -159,28 +213,34 @@
             ].map(s => s || '').join(' ').toLowerCase();
             return text.includes(query);
         }).forEach(item => {
-            const isAudited = item.auditOnsite !== null && item.auditOnsite !== undefined;
             const photo = item.photo ? `<img src="${item.photo}" class="card-img">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;">無</div>`;
             
             let btnHtml = '';
-            if (isAudited) {
-                // 💡 加入容許誤差放行判斷
-                const diff = Math.abs(item.auditOnsite - (item.quantityOnsite || 0));
-                const isMatch = diff <= (item.allowedError || 0);
-                if (isMatch) { btnHtml = `<button class="audit-btn done-correct" disabled>✅ 正確</button>`; } 
-                else { btnHtml = `<button class="audit-btn done-diff" disabled>待審核</button>`; }
-            } else {
-                btnHtml = `<button class="audit-btn" id="btn-${item.id}" onclick="submitAudit(${item.id})">送出</button>`;
-            }
+            let inputHtml = '';
+
+            if (currentMode === 'audit') {
+                const isAudited = item.auditOnsite !== null && item.auditOnsite !== undefined;
+                if (isAudited) {
+                    const diff = Math.abs(item.auditOnsite - (item.quantityOnsite || 0));
+                    const isMatch = diff <= (item.allowedError || 0);
+                    if (isMatch) { btnHtml = `<button class="audit-btn done-correct" disabled>✅ 正確</button>`; } 
+                    else { btnHtml = `<button class="audit-btn done-diff" disabled>待審核</button>`; }
+                } else {
+                    btnHtml = `<button class="audit-btn" id="btn-${item.id}" onclick="submitAudit(${item.id})">送出</button>`;
+                }
+                inputHtml = isAudited ? `<input type="number" class="audit-input" value="${item.auditOnsite}" disabled>` : `<input type="number" class="audit-input" id="input-${item.id}" placeholder="數量" min="0">`;
             
-            const inputHtml = isAudited ? `<input type="number" class="audit-input" value="${item.auditOnsite}" disabled>` : `<input type="number" class="audit-input" id="input-${item.id}" placeholder="數量" min="0">`;
+            } else {
+                inputHtml = `<input type="number" class="audit-input" id="broken-${item.id}" placeholder="破幾個" min="1" style="border-color:#e74c3c;">`;
+                btnHtml = `<button class="audit-btn broken-btn" id="btn-broken-${item.id}" onclick="reportBroken(${item.id})">回報扣除</button>`;
+            }
 
             list.innerHTML += `
                 <div class="card">
                     ${photo}
                     <div class="card-info">
                         <div class="sku">${item.productId || '無編號'}</div>
-                        <div class="name">${item.productName || '未命名'}</div>
+                        <div class="name" style="color: ${currentMode === 'broken' ? '#c0392b' : 'var(--primary-color)'}">${item.productName || '未命名'}</div>
                         <div class="loc">📍 ${item.location || '未指定位置'}</div>
                         <div class="audit-input-group">
                             ${inputHtml} ${btnHtml}
@@ -201,7 +261,6 @@
         const systemQty = item.quantityOnsite || 0;
         const btn = document.getElementById(`btn-${id}`);
 
-        // 💡 容許誤差放行
         const diff = Math.abs(val - systemQty);
         const isMatch = diff <= (item.allowedError || 0);
 
@@ -224,7 +283,45 @@
         } catch(e) { alert("送出失敗"); btn.innerText = warnedItems.has(id) ? "強制送出" : "送出"; btn.className = warnedItems.has(id) ? "audit-btn warning" : "audit-btn"; btn.disabled = false; }
     }
 
+    async function reportBroken(id) {
+        const inputEl = document.getElementById(`broken-${id}`);
+        if (inputEl.value === '' || parseInt(inputEl.value) <= 0) return alert("請輸入正確的破損數量！");
+        const val = parseInt(inputEl.value);
+        const item = inventoryData.find(i => i.id === id);
+        
+        if (!confirm(`🚨 確定要回報【${item.productName}】破損 ${val} 個嗎？\n\n這將會直接從現場庫存中扣除！`)) return;
+
+        const btn = document.getElementById(`btn-broken-${id}`);
+        btn.innerText = "處理中..."; btn.disabled = true;
+
+        try {
+            const res = await fetch(API_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'X-Employee-Password': sessionStorage.getItem('empToken') }, 
+                body: JSON.stringify({ action: 'reportBroken', id: id, amount: val }) 
+            });
+            if (res.ok) {
+                alert(`✅ 回報成功！\n已將 ${item.productName} 扣除 ${val} 個。`);
+                
+                const refreshRes = await fetch(API_URL);
+                inventoryData = await refreshRes.json();
+                
+                inputEl.value = '';
+                btn.innerText = "已回報";
+                setTimeout(() => { btn.innerText = "回報扣除"; btn.disabled = false; }, 2000);
+            } else { throw new Error(); }
+        } catch(e) { 
+            alert("回報失敗，請檢查網路"); 
+            btn.innerText = "回報扣除"; btn.disabled = false; 
+        }
+    }
+
     if (sessionStorage.getItem('empToken')) { showGroupSelect(); }
 </script>
+
+<ElicitationsGroup>
+  <Elicitation label="OK，這樣很清楚！" query="介面和功能都看起來很棒了。請問接下來我還可以怎麼利用系統優化管理？"/>
+  <Elicitation label="還有一個小問題..." query="我有一個跟這個系統有關的問題想問..."/>
+</ElicitationsGroup>
 </body>
 </html>
