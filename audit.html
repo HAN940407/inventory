@@ -62,9 +62,9 @@
 <div id="mainContainer">
     <div class="header">
         <h2 style="color:var(--primary-color); margin-bottom:5px;" id="headerTitle">📝 載入中...</h2>
-        <!-- 💡 這裡會顯示「總件數」進度 -->
         <p style="color:#7f8c8d; font-size:0.9rem; margin-top:0; line-height:1.6;" id="headerDesc">請確實點算現場實際數量</p>
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋存放位置、品名、編號...">
+        <!-- 💡 更新了搜尋框提示 -->
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋編號、品名、位置、用途、規格...">
     </div>
     <div id="listContainer"></div>
 </div>
@@ -118,16 +118,10 @@
         renderList();
     }
 
-    // 💡 即時計算並更新進度條：改為計算「總件數」
     function updateProgress() {
         if(!selectedGroup) return;
-        
         const myAllItems = inventoryData.filter(item => (item.assignedGroup || '').trim() === selectedGroup && item.auditMode !== 'SKIP');
-        
-        // 計算「目標應盤總件數」
         const targetTotalQty = myAllItems.reduce((sum, item) => sum + (item.quantityOnsite || 0), 0);
-        
-        // 計算「目前已盤總件數」(加總員工送出的數字)
         const doneTotalQty = myAllItems.reduce((sum, item) => {
             if (item.auditOnsite !== null && item.auditOnsite !== undefined) {
                 return sum + parseInt(item.auditOnsite);
@@ -135,12 +129,8 @@
             return sum;
         }, 0);
 
-        // 判斷是否所有品項都送出了 (用來變更綠色背景)
         const allSubmitted = myAllItems.length > 0 && myAllItems.every(i => i.auditOnsite !== null && i.auditOnsite !== undefined);
-        
-        let progressStyle = allSubmitted 
-            ? "background:#d5f5e3; color:#27ae60;" 
-            : "background:#ebf5fb; color:#2980b9;";
+        let progressStyle = allSubmitted ? "background:#d5f5e3; color:#27ae60;" : "background:#ebf5fb; color:#2980b9;";
 
         document.getElementById('headerDesc').innerHTML = `請確實點算現場實際數量<br>
             <span style="display:inline-block; margin-top:10px; padding:6px 16px; border-radius:20px; font-weight:bold; font-size:1.05rem; box-shadow:0 2px 5px rgba(0,0,0,0.05); ${progressStyle}">
@@ -149,8 +139,7 @@
     }
 
     function renderList() {
-        updateProgress(); // 每次渲染時更新進度條
-        
+        updateProgress();
         const query = document.getElementById('searchInput').value.toLowerCase();
         const list = document.getElementById('listContainer');
         list.innerHTML = '';
@@ -161,8 +150,13 @@
             return list.innerHTML = '<p style="text-align:center; color:#7f8c8d; padding:30px;">此組別目前沒有待盤點項目。</p>';
         }
 
+        // 💡 升級版全欄位搜尋
         myItems.filter(item => {
-            const text = (item.productName + item.productId + item.location).toLowerCase();
+            if (!query) return true;
+            const text = [
+                item.productId, item.productName, item.location, 
+                item.purpose, item.spec, item.vendor
+            ].map(s => s || '').join(' ').toLowerCase();
             return text.includes(query);
         }).forEach(item => {
             const isAudited = item.auditOnsite !== null && item.auditOnsite !== undefined;
@@ -170,7 +164,9 @@
             
             let btnHtml = '';
             if (isAudited) {
-                const isMatch = item.auditOnsite === (item.quantityOnsite || 0);
+                // 💡 加入容許誤差放行判斷
+                const diff = Math.abs(item.auditOnsite - (item.quantityOnsite || 0));
+                const isMatch = diff <= (item.allowedError || 0);
                 if (isMatch) { btnHtml = `<button class="audit-btn done-correct" disabled>✅ 正確</button>`; } 
                 else { btnHtml = `<button class="audit-btn done-diff" disabled>待審核</button>`; }
             } else {
@@ -205,7 +201,11 @@
         const systemQty = item.quantityOnsite || 0;
         const btn = document.getElementById(`btn-${id}`);
 
-        if (val !== systemQty && !warnedItems.has(id)) {
+        // 💡 容許誤差放行
+        const diff = Math.abs(val - systemQty);
+        const isMatch = diff <= (item.allowedError || 0);
+
+        if (!isMatch && !warnedItems.has(id)) {
             alert("⚠️ 盤點數量與系統紀錄【不符】！\n\n請務必再重新確認一次。\n若您非常確定實際數量是 " + val + "，請再次點擊「強制送出」。");
             warnedItems.add(id); btn.innerText = "強制送出"; btn.className = "audit-btn warning"; return;
         }
@@ -216,12 +216,10 @@
             const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': sessionStorage.getItem('empToken') }, body: JSON.stringify({ action: 'submitAudit', id: id, auditOnsite: val }) });
             if (res.ok) {
                 inputEl.disabled = true; if (item) item.auditOnsite = val;
-                if (val === systemQty) { btn.innerText = "✅ 正確"; btn.className = "audit-btn done-correct"; } 
+                if (isMatch) { btn.innerText = "✅ 正確"; btn.className = "audit-btn done-correct"; } 
                 else { btn.innerText = "待審核"; btn.className = "audit-btn done-diff"; }
                 
-                // 送出後立刻更新數量進度
                 updateProgress();
-
             } else { throw new Error(); }
         } catch(e) { alert("送出失敗"); btn.innerText = warnedItems.has(id) ? "強制送出" : "送出"; btn.className = warnedItems.has(id) ? "audit-btn warning" : "audit-btn"; btn.disabled = false; }
     }
