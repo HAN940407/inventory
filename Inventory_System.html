@@ -41,14 +41,13 @@
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
         .card.edit-mode { border: 2px solid var(--edit-color); box-shadow: 0 0 20px rgba(243, 156, 18, 0.15); }
         
-        /* 💡 儀表板排版修改，加入第四格 */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
         @media (min-width: 992px) { .dashboard-grid { grid-template-columns: repeat(4, 1fr); } }
         .stat-box { padding: 20px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .stat-box.blue { background: linear-gradient(135deg, var(--secondary-color), #2980b9); }
         .stat-box.green { background: linear-gradient(135deg, #27ae60, #2ecc71); }
         .stat-box.orange { background: linear-gradient(135deg, #e67e22, #f39c12); }
-        .stat-box.red { background: linear-gradient(135deg, #e74c3c, #c0392b); } /* 新增紅色損耗格 */
+        .stat-box.red { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .stat-title { font-size: 1rem; font-weight: 600; margin-bottom: 10px; opacity: 0.9; }
         .stat-value { font-size: 2rem; font-weight: bold; margin: 0; }
         
@@ -99,7 +98,7 @@
         
         .qty-hl { color: var(--secondary-color); font-weight: bold; }
         .qty-borrow { color: var(--borrow-color); font-weight: bold; }
-        .qty-broken { color: #e74c3c; font-weight: bold; } /* 💡 破損樣式 */
+        .qty-broken { color: #e74c3c; font-weight: bold; } 
         .qty-total { color: #d35400; font-weight: bold; font-size: 1.1rem; }
         .empty-state { text-align: center; padding: 40px; color: #7f8c8d; font-style: italic; font-size: 1.1rem; }
         
@@ -204,7 +203,6 @@
             <div class="stat-box green"><div class="stat-title">總庫存價值 (NT$)</div><div class="stat-value" id="statTotalValue">$0</div></div>
             <div class="stat-box blue"><div class="stat-title">總產品品項 (SKU)</div><div class="stat-value" id="statTotalSKU">0</div></div>
             <div class="stat-box orange"><div class="stat-title">所有總計件數</div><div class="stat-value" id="statTotalQty">0</div></div>
-            <!-- 💡 新增總損耗金額顯示 -->
             <div class="stat-box red"><div class="stat-title">本期破損損耗 (NT$)</div><div class="stat-value" id="statTotalLoss">$0</div></div>
         </div>
         <div class="charts-container">
@@ -265,14 +263,14 @@
                 <div class="form-group"><label>存放位置</label><input type="text" id="location"></div>
                 <div class="form-group"><label>單價 (NT$)</label><input type="number" id="price" min="0" step="0.1" value="0" required></div>
                 
+                <!-- 💡 表單新增：容許誤差 -->
+                <div class="form-group"><label style="color:#27ae60;">容許誤差 (±)</label><input type="number" id="allowedError" min="0" value="0" required></div>
                 <div class="form-group"><label style="color:var(--secondary-color);">現場庫存</label><input type="number" id="quantityOnsite" min="0" value="0" required></div>
                 <div class="form-group"><label>倉庫庫存</label><input type="number" id="quantity" min="0" value="0" required></div>
                 
                 <div class="form-group"><label style="color:var(--borrow-color);">忠孝外借</label><input type="number" id="borrowZhongxiao" min="0" value="0" required></div>
                 <div class="form-group"><label style="color:var(--borrow-color);">艾朋外借</label><input type="number" id="borrowApon" min="0" value="0" required></div>
                 <div class="form-group"><label style="color:var(--borrow-color);">其他外借</label><input type="number" id="borrowOther" min="0" value="0" required></div>
-                
-                <!-- 💡 表單新增：手動調整破損累計 -->
                 <div class="form-group"><label style="color:#e74c3c;">破損累計</label><input type="number" id="brokenCount" min="0" value="0" required></div>
             </div>
             <div class="form-actions">
@@ -304,9 +302,10 @@
                         <th style="color:#8e44ad; text-decoration:underline;" class="sortable-header" onclick="sortByAssignedGroup()" title="點擊切換排序">負責組別 ↕</th>
                         <th>廠商</th><th>單價</th>
                         
+                        <th style="color:#27ae60;">誤差</th> <!-- 💡 表格新增：容許誤差 -->
                         <th style="color:var(--secondary-color);">現場</th><th>倉庫</th>
                         <th style="color:var(--borrow-color);">忠孝</th><th style="color:var(--borrow-color);">艾朋</th><th style="color:var(--borrow-color);">其他</th>
-                        <th style="color:#e74c3c;">破損累計</th> <!-- 💡 表格新增：破損欄位 -->
+                        <th style="color:#e74c3c;">破損累計</th> 
                         
                         <th style="color:#d35400;">總數</th><th>總價</th>
                         <th style="text-align:center;">操作</th>
@@ -383,13 +382,13 @@
     }
 
     async function loadData() {
-        tableBody.innerHTML = '<tr><td colspan="18" style="text-align:center; padding: 40px; font-size: 1.2rem; color: #7f8c8d;">載入資料中... ☁️</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="19" style="text-align:center; padding: 40px; font-size: 1.2rem; color: #7f8c8d;">載入資料中... ☁️</td></tr>';
         try {
             const res = await fetch(API_URL); inventoryData = await res.json();
             isSortedByGroup = false; 
             applyAdminFilter(); 
             renderDashboard(); checkAudits();
-        } catch(e) { tableBody.innerHTML = '<tr><td colspan="18" style="text-align:center; color: red;">資料載入失敗，請檢查網路</td></tr>'; }
+        } catch(e) { tableBody.innerHTML = '<tr><td colspan="19" style="text-align:center; color: red;">資料載入失敗，請檢查網路</td></tr>'; }
     }
 
     function applyAdminFilter() {
@@ -431,7 +430,7 @@
         const startIndex = (currentPage - 1) * itemsPerPage;
         const pageData = filteredData.slice(startIndex, startIndex + itemsPerPage);
 
-        if (pageData.length === 0) return tableBody.innerHTML = '<tr><td colspan="18" class="empty-state">目前沒有符合的資料</td></tr>';
+        if (pageData.length === 0) return tableBody.innerHTML = '<tr><td colspan="19" class="empty-state">目前沒有符合的資料</td></tr>';
         
         pageData.forEach(item => {
             const tr = document.createElement('tr'); tr.setAttribute('data-id', item.id);
@@ -461,6 +460,9 @@
                 <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="vendor">${item.vendor||''}</div></td>
                 <td><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="price">${item.price||0}</div></td>
                 
+                <!-- 💡 表格顯示誤差 -->
+                <td style="color:#27ae60; font-weight:bold;"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="allowedError">${item.allowedError || 0}</div></td>
+                
                 <td class="qty-hl" style="${onsiteStyle}"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantityOnsite">${item.quantityOnsite || 0}</div></td>
                 <td class="qty-hl"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="quantity">${item.quantity || 0}</div></td>
                 
@@ -468,7 +470,6 @@
                 <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowApon">${item.borrowApon || 0}</div></td>
                 <td class="qty-borrow"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="borrowOther">${item.borrowOther || 0}</div></td>
                 
-                <!-- 💡 表格顯示破損數 -->
                 <td class="qty-broken"><div class="editable-cell" contenteditable="true" data-id="${item.id}" data-field="brokenCount">${item.brokenCount || 0}</div></td>
 
                 <td class="qty-total" id="totalQty-${item.id}">${qTotal}</td>
@@ -606,11 +607,24 @@
     function openAuditModal() { document.getElementById('auditModal').style.display = 'block'; }
     function closeAuditModal() { document.getElementById('auditModal').style.display = 'none'; }
 
+    // 💡 審核 Modal：加入容許誤差的視覺提示
     function renderAuditModal(audits) {
         const tbody = document.getElementById('auditTableBody'); tbody.innerHTML = '';
         audits.forEach(item => {
-            const oldQ = item.quantityOnsite || 0; const newQ = item.auditOnsite; const diff = newQ - oldQ;
-            const diffHtml = diff === 0 ? `<span style="color:#7f8c8d;">無差異</span>` : (diff > 0 ? `<span class="diff-green">+${diff}</span>` : `<span class="diff-red">${diff}</span>`);
+            const oldQ = item.quantityOnsite || 0; 
+            const newQ = item.auditOnsite; 
+            const diff = newQ - oldQ;
+            const margin = item.allowedError || 0;
+            
+            let diffHtml = '';
+            if (diff === 0) {
+                diffHtml = `<span style="color:#7f8c8d;">無差異</span>`;
+            } else if (Math.abs(diff) <= margin) {
+                diffHtml = `<span style="color:#27ae60; font-weight:bold;">${diff > 0 ? '+'+diff : diff} <br><span style="font-size:0.8rem; background:#d5f5e3; padding:2px 4px; border-radius:4px;">(容許範圍內)</span></span>`;
+            } else {
+                diffHtml = `<span class="${diff > 0 ? 'diff-green' : 'diff-red'}">${diff > 0 ? '+'+diff : diff}</span>`;
+            }
+
             tbody.innerHTML += `
                 <tr style="border-bottom:1px solid #eee;">
                     <td style="padding:10px 8px;"><span style="background:#f4ecf7; color:#8e44ad; padding:4px 8px; border-radius:6px; font-size:0.85rem; display:inline-block;">${item.assignedGroup || '未指派'}</span></td>
@@ -652,8 +666,7 @@
 
     function exportCSV() {
         if (inventoryData.length === 0) { alert("沒有資料可以匯出！"); return; }
-        // 💡 匯出加入破損欄位
-        const csvData = inventoryData.map(item => ({ "系統ID": item.id || "", "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "", "盤點模式": item.auditMode || "AI", "負責組別": item.assignedGroup || "", "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "", "單價": item.price || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0, "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0, "破損累計": item.brokenCount || 0, "照片資料": item.photo || "" }));
+        const csvData = inventoryData.map(item => ({ "系統ID": item.id || "", "訂購編號": item.orderId || "", "產品編號": item.productId || "", "品名": item.productName || "", "盤點模式": item.auditMode || "AI", "負責組別": item.assignedGroup || "", "規格": item.spec || "", "廠商": item.vendor || "", "用途": item.purpose || "", "存放位置": item.location || "", "單價": item.price || 0, "容許誤差": item.allowedError || 0, "現場庫存": item.quantityOnsite || 0, "倉庫庫存": item.quantity || 0, "忠孝外借": item.borrowZhongxiao || 0, "艾朋外借": item.borrowApon || 0, "其他外借": item.borrowOther || 0, "破損累計": item.brokenCount || 0, "照片資料": item.photo || "" }));
         const csvContent = "\uFEFF" + Papa.unparse(csvData, { header: true });
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
@@ -677,8 +690,8 @@
         const itemIndex = inventoryData.findIndex(i => i.id === id); if (itemIndex === -1) return;
         let item = { ...inventoryData[itemIndex] };
         
-        // 💡 確保改到破損數量也能存入
-        if (['price', 'quantityOnsite', 'quantity', 'borrowZhongxiao', 'borrowApon', 'borrowOther', 'brokenCount'].includes(field)) {
+        // 💡 確保改到誤差數量也能存入
+        if (['price', 'quantityOnsite', 'quantity', 'borrowZhongxiao', 'borrowApon', 'borrowOther', 'brokenCount', 'allowedError'].includes(field)) {
             let num = parseFloat(newValue) || 0; item[field] = num; cellElement.innerText = num; 
             const totalQ = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0);
             item.totalPrice = item.price * totalQ;
@@ -723,13 +736,13 @@
     function renderDashboard() {
         if (inventoryData.length === 0) { document.getElementById('dashboardCard').style.display = 'none'; return; }
         document.getElementById('dashboardCard').style.display = 'block'; 
-        let totalValue = 0; let totalQty = 0; let vendorCounts = {}; let totalLoss = 0; // 💡 總損耗變數
+        let totalValue = 0; let totalQty = 0; let vendorCounts = {}; let totalLoss = 0; 
         
         inventoryData.forEach(item => {
             const sumQty = (item.quantityOnsite||0) + (item.quantity||0) + (item.borrowZhongxiao||0) + (item.borrowApon||0) + (item.borrowOther||0); 
             totalValue += (item.price || 0) * sumQty; 
             totalQty += sumQty; 
-            totalLoss += (item.price || 0) * (item.brokenCount || 0); // 💡 計算損失金額
+            totalLoss += (item.price || 0) * (item.brokenCount || 0); 
             const vendor = item.vendor || '未登記廠商'; 
             vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
         });
@@ -737,7 +750,7 @@
         document.getElementById('statTotalValue').innerText = '$' + totalValue.toLocaleString(); 
         document.getElementById('statTotalSKU').innerText = inventoryData.length.toLocaleString(); 
         document.getElementById('statTotalQty').innerText = totalQty.toLocaleString();
-        document.getElementById('statTotalLoss').innerText = '$' + totalLoss.toLocaleString(); // 💡 顯示損失金額
+        document.getElementById('statTotalLoss').innerText = '$' + totalLoss.toLocaleString(); 
         
         const ctxVendor = document.getElementById('vendorChart').getContext('2d');
         if (vendorChartInstance) vendorChartInstance.destroy(); 
@@ -764,12 +777,13 @@
             purpose: document.getElementById('purpose').value, 
             location: document.getElementById('location').value, 
             price: parseFloat(document.getElementById('price').value) || 0,
+            allowedError: parseInt(document.getElementById('allowedError').value) || 0, // 💡 新增容許誤差
             quantityOnsite: parseInt(document.getElementById('quantityOnsite').value) || 0, 
             quantity: parseInt(document.getElementById('quantity').value) || 0, 
             borrowZhongxiao: parseInt(document.getElementById('borrowZhongxiao').value) || 0, 
             borrowApon: parseInt(document.getElementById('borrowApon').value) || 0, 
             borrowOther: parseInt(document.getElementById('borrowOther').value) || 0, 
-            brokenCount: parseInt(document.getElementById('brokenCount').value) || 0, // 💡 新增破損數
+            brokenCount: parseInt(document.getElementById('brokenCount').value) || 0,
             assignedGroup: existingItem.assignedGroup || '',
             auditOnsite: existingItem.auditOnsite !== undefined ? existingItem.auditOnsite : null
         };
@@ -799,8 +813,10 @@
     
     function startEdit(id) { 
         const item = inventoryData.find(i => i.id === id); if(!item) return; editingId = id; currentOriginalPhoto = item.photo || ''; 
-        document.getElementById('orderId').value = item.orderId || ''; document.getElementById('productId').value = item.productId || ''; document.getElementById('productName').value = item.productName || ''; document.getElementById('spec').value = item.spec || ''; document.getElementById('auditMode').value = item.auditMode || 'AI'; document.getElementById('vendor').value = item.vendor || ''; document.getElementById('purpose').value = item.purpose || ''; document.getElementById('location').value = item.location || ''; document.getElementById('price').value = item.price || 0; document.getElementById('quantityOnsite').value = item.quantityOnsite || 0; document.getElementById('quantity').value = item.quantity || 0; document.getElementById('borrowZhongxiao').value = item.borrowZhongxiao || 0; document.getElementById('borrowApon').value = item.borrowApon || 0; document.getElementById('borrowOther').value = item.borrowOther || 0; 
-        document.getElementById('brokenCount').value = item.brokenCount || 0; // 💡 編輯帶入破損數
+        document.getElementById('orderId').value = item.orderId || ''; document.getElementById('productId').value = item.productId || ''; document.getElementById('productName').value = item.productName || ''; document.getElementById('spec').value = item.spec || ''; document.getElementById('auditMode').value = item.auditMode || 'AI'; document.getElementById('vendor').value = item.vendor || ''; document.getElementById('purpose').value = item.purpose || ''; document.getElementById('location').value = item.location || ''; document.getElementById('price').value = item.price || 0; 
+        document.getElementById('allowedError').value = item.allowedError || 0; // 💡 編輯帶入
+        document.getElementById('quantityOnsite').value = item.quantityOnsite || 0; document.getElementById('quantity').value = item.quantity || 0; document.getElementById('borrowZhongxiao').value = item.borrowZhongxiao || 0; document.getElementById('borrowApon').value = item.borrowApon || 0; document.getElementById('borrowOther').value = item.borrowOther || 0; 
+        document.getElementById('brokenCount').value = item.brokenCount || 0; 
         document.getElementById('formCard').classList.add('edit-mode'); document.getElementById('formTitle').innerText = `✏️ 編輯資料`; document.getElementById('cancelEditBtn').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' }); 
     }
     
@@ -819,17 +835,18 @@
                 results.data.forEach((row, index) => {
                     if (!row['產品編號'] && !row['品名']) return;
                     const price = parseFloat(row['單價']) || 0; const qOnsite = parseInt(row['現場庫存']) || 0; const qWarehouse = parseInt(row['倉庫庫存']) || parseInt(row['數量']) || 0; const qBZ = parseInt(row['忠孝外借']) || 0; const qBA = parseInt(row['艾朋外借']) || 0; const qBO = parseInt(row['其他外借']) || 0;
-                    const bCount = parseInt(row['破損累計']) || 0; // 💡 導入破損數
+                    const bCount = parseInt(row['破損累計']) || 0; 
+                    const aError = parseInt(row['容許誤差']) || 0; // 💡 導入容許誤差
                     const tQty = qOnsite + qWarehouse + qBZ + qBA + qBO;
                     let isUpdate = false; let targetId = null; let originalPhoto = ''; let originalGroup = ''; let originalAudit = null; let originalMode = 'AI';
                     if (row['系統ID']) { const existing = inventoryData.find(i => String(i.id) === String(row['系統ID'])); if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; originalGroup = existing.assignedGroup || ''; originalAudit = existing.auditOnsite; originalMode = existing.auditMode || 'AI'; } }
                     if (!isUpdate && row['產品編號']) { const existing = inventoryData.find(i => String(i.productId) === String(row['產品編號'])); if (existing) { isUpdate = true; targetId = existing.id; originalPhoto = existing.photo || ''; originalGroup = existing.assignedGroup || ''; originalAudit = existing.auditOnsite; originalMode = existing.auditMode || 'AI'; } }
                     if (isUpdate) { updateCount++; } else { insertCount++; targetId = Date.now() + index; }
-                    upsertData.push({ isUpdate: isUpdate, id: targetId, photo: row['照片資料'] || originalPhoto, orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, brokenCount: bCount, totalPrice: price * tQty, assignedGroup: row['負責組別'] || originalGroup, auditMode: row['盤點模式'] || originalMode, auditOnsite: originalAudit });
+                    upsertData.push({ isUpdate: isUpdate, id: targetId, photo: row['照片資料'] || originalPhoto, orderId: row['訂購編號']||'', productId: row['產品編號']||'', productName: row['品名']||'', spec: row['規格']||'', vendor: row['廠商']||'', purpose: row['用途']||'', location: row['存放位置']||'', price: price, allowedError: aError, quantityOnsite: qOnsite, quantity: qWarehouse, borrowZhongxiao: qBZ, borrowApon: qBA, borrowOther: qBO, brokenCount: bCount, totalPrice: price * tQty, assignedGroup: row['負責組別'] || originalGroup, auditMode: row['盤點模式'] || originalMode, auditOnsite: originalAudit });
                 });
                 if (upsertData.length === 0) return alert("沒有找到有效的資料列！");
                 if (!confirm(`🔍 將執行以下操作：\n🔄 覆蓋更新：${updateCount} 筆\n✨ 全新建立：${insertCount} 筆\n\n確定執行導入？`)) { e.target.value = ''; return; }
-                try { tableBody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding: 40px;">處理中...</td></tr>`; await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'batchUpsert', items: upsertData }) }); alert(`✅ 成功導入 ${upsertData.length} 筆資料！`); await loadData(); } catch (error) { alert("發生錯誤。"); await loadData(); } e.target.value = ''; 
+                try { tableBody.innerHTML = `<tr><td colspan="19" style="text-align:center; padding: 40px;">處理中...</td></tr>`; await fetch(API_URL, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'batchUpsert', items: upsertData }) }); alert(`✅ 成功導入 ${upsertData.length} 筆資料！`); await loadData(); } catch (error) { alert("發生錯誤。"); await loadData(); } e.target.value = ''; 
             }
         });
     });
