@@ -134,7 +134,7 @@
         .pagination button:hover:not(:disabled) { background-color: var(--primary-color); color: white; }
         .pagination button:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
         .page-info { font-weight: bold; color: var(--primary-color); }
-        .search-box { padding: 10px 15px; border-radius: 8px; border: 2px solid var(--secondary-color); font-size: 1rem; width: 100%; max-width: 300px; outline: none;}
+        .search-box { padding: 10px 15px; border-radius: 8px; border: 2px solid var(--secondary-color); font-size: 1rem; width: 100%; max-width: 320px; outline: none;}
     </style>
 </head>
 <body>
@@ -284,12 +284,10 @@
         <div class="header-actions">
             <h2 class="card-title">📦 目前庫存總覽</h2>
             <div class="header-actions-right">
-                <input type="text" id="adminSearchInput" class="search-box" placeholder="🔍 搜尋編號、品名、廠商...">
+                <!-- 💡 升級版全欄位搜尋框 -->
+                <input type="text" id="adminSearchInput" class="search-box" placeholder="🔍 搜尋編號、品名、廠商、用途、位置...">
                 <button class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 刪除</button>
-                
-                <!-- 💡 解決載入太慢的最強武器：一鍵優化舊照片 -->
                 <button class="btn btn-optimize" onclick="optimizeOldPhotos()" id="optimizeBtn" title="壓縮之前上傳的過大照片">🚀 最佳化舊照片加速</button>
-                
                 <button class="btn" style="background-color:#34495e;" onclick="exportCSV()">📤 匯出</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
                 <button class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 導入</button>
@@ -385,9 +383,7 @@
         reader.readAsDataURL(file);
     }
 
-    // 💡 全自動舊照片壓縮引擎：一鍵解決載入太慢的問題！
     async function optimizeOldPhotos() {
-        // 抓出超過大約 60KB (文字長度 > 80000) 的未壓縮舊圖片
         const itemsToOptimize = inventoryData.filter(item => item.photo && item.photo.length > 80000); 
         if (itemsToOptimize.length === 0) {
             alert('🎉 太棒了！您系統內的所有照片都已經是最佳化狀態，載入速度已全開！');
@@ -418,7 +414,6 @@
 
                     item.photo = compressedPhoto;
                     try {
-                        // 回傳到雲端時，使用最安全的更新邏輯
                         await fetch(API_URL, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(item) });
                         successCount++;
                     } catch(e) {}
@@ -431,7 +426,7 @@
         btn.innerText = "🚀 最佳化舊照片加速";
         btn.disabled = false;
         alert(`✅ 最佳化完成！成功壓縮了 ${successCount} 張舊照片。\n以後系統載入將會飛快無比！`);
-        loadData(); // 重新讀取輕量級的資料
+        loadData(); 
     }
 
     async function loadData() {
@@ -444,11 +439,17 @@
         } catch(e) { tableBody.innerHTML = '<tr><td colspan="19" style="text-align:center; color: red;">資料載入失敗，請檢查網路</td></tr>'; }
     }
 
+    // 💡 升級版全欄位搜尋邏輯
     function applyAdminFilter() {
         const query = document.getElementById('adminSearchInput').value.toLowerCase();
         filteredData = inventoryData.filter(item => {
             if (!query) return true;
-            const text = (item.productId + ' ' + item.productName + ' ' + item.vendor + ' ' + item.assignedGroup).toLowerCase();
+            // 組合所有需要被搜尋的欄位
+            const text = [
+                item.productId, item.productName, item.vendor, 
+                item.assignedGroup, item.purpose, item.location, 
+                item.spec, item.auditMode
+            ].map(s => s || '').join(' ').toLowerCase();
             return text.includes(query);
         });
 
@@ -846,7 +847,6 @@
                 saveToServer(itemData); 
             });
         } else { 
-            // 💡 若沒有上傳新照片，確保傳送 null，讓 API 使用 COALESCE 保留原本資料庫的照片！
             itemData.photo = editingId ? null : ''; 
             saveToServer(itemData); 
         }
