@@ -11,10 +11,10 @@
         .login-box { background: white; padding: 30px; border-radius: 12px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .login-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 6px; font-size: 1.1rem; box-sizing: border-box; text-align: center; letter-spacing: 2px; }
         .btn { width: 100%; padding: 12px; background-color: var(--secondary-color); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s;}
-        .btn:hover { filter: brightness(0.9); }
+        .btn:hover:not(:disabled) { filter: brightness(0.9); }
+        .btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
         
         #mainContainer { display: none; max-width: 600px; margin: 0 auto; padding-bottom: 50px;}
-        
         .header { text-align: center; margin-bottom: 20px; }
         .search-input { width: 100%; padding: 12px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; box-sizing: border-box; margin-bottom: 20px; outline:none;}
         
@@ -38,7 +38,7 @@
     <div class="login-box">
         <h2 style="color:#e74c3c; margin-top:0;">💥 破損回報系統</h2>
         <input type="password" id="passwordInput" class="login-input" placeholder="員工授權碼">
-        <button class="btn" onclick="checkPassword()">登入驗證</button>
+        <button class="btn" id="loginBtn" onclick="checkPassword()">登入驗證</button>
         <p id="errorMsg" style="color:red; display:none; font-size:0.9rem; font-weight:bold;">密碼錯誤</p>
     </div>
 </div>
@@ -47,7 +47,6 @@
     <div class="header">
         <h2 style="color:var(--secondary-color); margin-bottom:5px;">💥 現場破損回報區</h2>
         <p style="color:#7f8c8d; font-size:0.9rem; margin-top:0;">回報後系統將自動為您扣除現場庫存</p>
-        <!-- 💡 更新了搜尋框提示 -->
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋要回報的商品名稱、用途、編號...">
     </div>
     <div id="listContainer"></div>
@@ -59,22 +58,42 @@
 
     async function checkPassword() {
         const input = document.getElementById('passwordInput').value;
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true;
+        btn.innerText = "驗證中...";
+        document.getElementById('errorMsg').style.display = 'none';
+
         try {
             const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': input }, body: JSON.stringify({ action: 'login_emp' }) });
-            if (res.ok) { sessionStorage.setItem('empToken', input); loadData(); } 
-            else { document.getElementById('errorMsg').style.display = 'block'; }
-        } catch (e) { alert("連線失敗"); }
+            if (res.ok) { 
+                sessionStorage.setItem('empToken', input); 
+                btn.innerText = "下載資料中 📦..."; 
+                await loadData(); 
+            } else { 
+                document.getElementById('errorMsg').style.display = 'block'; 
+                btn.disabled = false;
+                btn.innerText = "登入驗證";
+            }
+        } catch (e) { 
+            alert("連線失敗"); 
+            btn.disabled = false;
+            btn.innerText = "登入驗證";
+        }
     }
 
     async function loadData() {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('mainContainer').style.display = 'block';
-        document.getElementById('listContainer').innerHTML = '<p style="text-align:center;">資料載入中...</p>';
         try {
             const res = await fetch(API_URL);
             inventoryData = await res.json();
+            
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'block';
             renderList();
-        } catch(e) { alert("資料載入失敗"); }
+        } catch(e) { 
+            alert("資料載入失敗，請檢查網路。"); 
+            document.getElementById('loginBtn').disabled = false;
+            document.getElementById('loginBtn').innerText = "登入驗證";
+        }
     }
 
     function renderList() {
@@ -87,7 +106,6 @@
             return;
         }
 
-        // 💡 升級版全欄位搜尋
         inventoryData.filter(item => {
             const text = [
                 item.productId, item.productName, item.location, 
@@ -95,7 +113,7 @@
             ].map(s => s || '').join(' ').toLowerCase();
             return text.includes(query);
         }).forEach(item => {
-            const photo = item.photo ? `<img src="${item.photo}" class="card-img">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;">無</div>`;
+            const photo = item.photo ? `<img src="${item.photo}" class="card-img">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;">無圖</div>`;
             
             list.innerHTML += `
                 <div class="card">
@@ -136,6 +154,7 @@
             if (res.ok) {
                 alert(`✅ 回報成功！\n已將 ${item.productName} 扣除 ${val} 個。`);
                 
+                // 重新載入以獲取最新庫存數字
                 const refreshRes = await fetch(API_URL);
                 inventoryData = await refreshRes.json();
                 
@@ -148,8 +167,11 @@
             btn.innerText = "回報扣除"; btn.disabled = false; 
         }
     }
-
-    if (sessionStorage.getItem('empToken')) { loadData(); }
 </script>
+
+<ElicitationsGroup>
+  <Elicitation label="網頁順利上線了！" query="我已經成功更新檔案，請問未來如果我想備份資料有什麼好建議嗎？"/>
+  <Elicitation label="我還有其他調整想法..." query="我想要再優化一些功能細節，想問看看能不能做到..."/>
+</ElicitationsGroup>
 </body>
 </html>
