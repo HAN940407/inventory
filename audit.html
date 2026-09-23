@@ -24,7 +24,6 @@
         .sku { font-size: 0.8rem; color: #7f8c8d; }
         .name { font-size: 1.1rem; font-weight: bold; color: var(--primary-color); margin: 3px 0; }
         
-        /* 💡 新增用途與位置並排的標籤樣式 */
         .tags-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
         .loc { font-size: 0.85rem; color: #d35400; background: #fdf2e9; padding: 3px 6px; border-radius: 4px; }
         .purpose { font-size: 0.85rem; color: #8e44ad; background: #f4ecf7; padding: 3px 6px; border-radius: 4px; }
@@ -172,6 +171,18 @@
             </span>`;
     }
 
+    // 💡 新增：自動恢復按鈕狀態功能
+    function resetWarning(id) {
+        if (warnedItems.has(id)) {
+            warnedItems.delete(id);
+            const btn = document.getElementById(`btn-${id}`);
+            if (btn) {
+                btn.innerText = "送出";
+                btn.className = "audit-btn";
+            }
+        }
+    }
+
     function renderList() {
         updateProgress();
         const query = document.getElementById('searchInput').value.toLowerCase();
@@ -194,7 +205,6 @@
         }).forEach(item => {
             const photo = item.photo ? `<img src="${item.photo}" class="card-img">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;">無圖</div>`;
             
-            // 💡 整理標籤：顯示位置與用途
             const locTag = `<div class="loc">📍 ${item.location || '未指定位置'}</div>`;
             const purposeTag = item.purpose ? `<div class="purpose">🏷️ ${item.purpose}</div>` : '';
             
@@ -207,9 +217,10 @@
                 btnHtml = `<button class="audit-btn" id="btn-${item.id}" onclick="submitAudit(${item.id})">送出</button>`;
             }
             
+            // 💡 在 input 加上 oninput="resetWarning()"，數字一改變就解除紅色警告狀態
             const inputHtml = (item.auditOnsite !== null && item.auditOnsite !== undefined) 
                 ? `<input type="number" class="audit-input" value="${item.auditOnsite}" disabled>` 
-                : `<input type="number" class="audit-input" id="input-${item.id}" placeholder="數量" min="0">`;
+                : `<input type="number" class="audit-input" id="input-${item.id}" placeholder="數量" min="0" oninput="resetWarning(${item.id})">`;
 
             list.innerHTML += `
                 <div class="card">
@@ -244,8 +255,20 @@
         const isMatch = diff <= (item.allowedError || 0);
 
         if (!isMatch && !warnedItems.has(id)) {
-            alert("⚠️ 盤點數量與系統紀錄【不符】！\n\n請務必再重新確認一次。\n若您非常確定實際數量是 " + val + "，請再次點擊「強制送出」。");
-            warnedItems.add(id); btn.innerText = "強制送出"; btn.className = "audit-btn warning"; return;
+            // 💡 升級為 confirm()，提供確定和取消按鈕
+            const userConfirm = confirm(`⚠️ 盤點數量與系統紀錄【不符】！\n\n您輸入的實際數量是：${val}\n\n👉 確定無誤：請按「確定」，接著點擊變紅的「強制送出」按鈕。\n👉 發現打錯：請按「取消」，即可重新輸入數字。`);
+            
+            if (!userConfirm) {
+                // 如果按取消，自動把輸入框裡的數字全選反白，方便直接按新數字覆蓋
+                inputEl.select();
+                return;
+            }
+            
+            // 按確定的話，就變紅色強制送出狀態
+            warnedItems.add(id); 
+            btn.innerText = "強制送出"; 
+            btn.className = "audit-btn warning"; 
+            return;
         }
 
         btn.innerText = "傳送中..."; btn.disabled = true; btn.className = "audit-btn";
