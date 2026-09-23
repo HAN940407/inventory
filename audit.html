@@ -23,7 +23,11 @@
         .card-info { flex-grow: 1; }
         .sku { font-size: 0.8rem; color: #7f8c8d; }
         .name { font-size: 1.1rem; font-weight: bold; color: var(--primary-color); margin: 3px 0; }
-        .loc { font-size: 0.85rem; color: #d35400; background: #fdf2e9; padding: 2px 6px; border-radius: 4px; display: inline-block;}
+        
+        /* 💡 新增用途與位置並排的標籤樣式 */
+        .tags-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+        .loc { font-size: 0.85rem; color: #d35400; background: #fdf2e9; padding: 3px 6px; border-radius: 4px; }
+        .purpose { font-size: 0.85rem; color: #8e44ad; background: #f4ecf7; padding: 3px 6px; border-radius: 4px; }
         
         .audit-input-group { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         .audit-input { width: 70px; padding: 8px; border: 2px solid #bdc3c7; border-radius: 6px; font-size: 1.1rem; text-align: center; outline:none;}
@@ -85,7 +89,7 @@
             const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': input }, body: JSON.stringify({ action: 'login_emp' }) });
             if (res.ok) { 
                 sessionStorage.setItem('empToken', input); 
-                btn.innerText = "下載盤點資料中 📦..."; // 💡 加入下載提示
+                btn.innerText = "下載盤點資料中 📦..."; 
                 await showGroupSelect(); 
             } else { 
                 document.getElementById('errorMsg').style.display = 'block'; 
@@ -144,8 +148,14 @@
         if(!selectedGroup) return;
         const myAllItems = inventoryData.filter(item => (item.assignedGroup || '').trim() === selectedGroup && item.auditMode !== 'SKIP');
         
-        // 只計算目標應盤總件數
         const targetTotalQty = myAllItems.reduce((sum, item) => sum + (item.quantityOnsite || 0), 0);
+        const doneTotalQty = myAllItems.reduce((sum, item) => {
+            if (item.auditOnsite !== null && item.auditOnsite !== undefined) {
+                return sum + parseInt(item.auditOnsite);
+            }
+            return sum;
+        }, 0);
+
         const allSubmitted = myAllItems.length > 0 && myAllItems.every(i => i.auditOnsite !== null && i.auditOnsite !== undefined);
         
         let progressStyle = allSubmitted 
@@ -184,6 +194,10 @@
         }).forEach(item => {
             const photo = item.photo ? `<img src="${item.photo}" class="card-img">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;">無圖</div>`;
             
+            // 💡 整理標籤：顯示位置與用途
+            const locTag = `<div class="loc">📍 ${item.location || '未指定位置'}</div>`;
+            const purposeTag = item.purpose ? `<div class="purpose">🏷️ ${item.purpose}</div>` : '';
+            
             let btnHtml = '';
             if (item.auditOnsite !== null && item.auditOnsite !== undefined) {
                 const diff = Math.abs(item.auditOnsite - (item.quantityOnsite || 0));
@@ -203,7 +217,10 @@
                     <div class="card-info">
                         <div class="sku">${item.productId || '無編號'}</div>
                         <div class="name">${item.productName || '未命名'}</div>
-                        <div class="loc">📍 ${item.location || '未指定位置'}</div>
+                        <div class="tags-group">
+                            ${locTag}
+                            ${purposeTag}
+                        </div>
                         <div class="audit-input-group">
                             ${inputHtml} ${btnHtml}
                         </div>
