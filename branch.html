@@ -75,7 +75,7 @@
 <div id="loginScreen">
     <div class="login-box">
         <h2 style="color:var(--secondary-color); margin-top:0;">🤝 跨店共用庫存</h2>
-        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-15px;">分店查詢請輸入 8888<br>管理員新增請輸入管理者密碼</p>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-15px;">查詢請輸入 8888<br></p>
         <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼">
         <button class="btn" id="loginBtn" onclick="checkPassword()">進入系統</button>
         <p id="errorMsg" style="color:red; display:none; font-size:0.9rem; font-weight:bold;">密碼錯誤</p>
@@ -122,15 +122,15 @@
             <input type="text" id="nameInput" placeholder="例如：金色高腳杯" required>
         </div>
         <div class="form-group">
-            <label class="label-main">🏬 總部/共用倉庫 (數量)</label>
+            <label class="label-main">🏬 古亭 (數量)</label>
             <input type="number" id="qtyMain" value="0" min="0">
         </div>
         <div class="form-group">
-            <label class="label-zx">📍 忠孝店 (已外借數量)</label>
+            <label class="label-zx">📍 忠孝店 (已轉出數量)</label>
             <input type="number" id="qtyZx" value="0" min="0">
         </div>
         <div class="form-group">
-            <label class="label-ap">📍 艾朋店 (已外借數量)</label>
+            <label class="label-ap">📍 艾朋店 (已轉出數量)</label>
             <input type="number" id="qtyAp" value="0" min="0">
         </div>
         <div style="display:flex; gap:10px; margin-top:25px;">
@@ -245,13 +245,13 @@
                     ${photo}
                     <h3 class="card-title">${item.productName || '未命名'}</h3>
                     <div class="stock-row label-main">
-                        <span>🏬 總部/共用倉庫 (可調度)</span><span class="val">${main}</span>
+                        <span>🏬 古亭 (可調度)</span><span class="val">${main}</span>
                     </div>
                     <div class="stock-row label-zx">
-                        <span>📍 忠孝店 (已外借)</span><span class="val">${zx}</span>
+                        <span>📍 忠孝店 (已轉出)</span><span class="val">${zx}</span>
                     </div>
                     <div class="stock-row label-ap">
-                        <span>📍 艾朋店 (已外借)</span><span class="val">${ap}</span>
+                        <span>📍 艾朋店 (已轉出)</span><span class="val">${ap}</span>
                     </div>
                     <div class="stock-row">
                         <span>📦 系統總數量</span><span class="val">${total}</span>
