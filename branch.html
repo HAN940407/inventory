@@ -3,108 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>共用庫存查詢系統</title>
+    <title>跨店共用庫存管理系統</title>
     <style>
         :root { --primary-color: #2c3e50; --secondary-color: #3498db; --bg-color: #f4f6f9; --zhongxiao: #27ae60; --apon: #8e44ad; --main: #d35400; }
-        body { font-family: sans-serif; background-color: var(--bg-color); margin: 0; padding: 15px; color: #333; }
-        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #34495e; display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .login-box { background: white; padding: 30px; border-radius: 12px; text-align: center; width: 90%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .login-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 6px; font-size: 1.1rem; box-sizing: border-box; text-align: center; letter-spacing: 2px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        
+        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .login-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 6px; font-size: 1.1rem; box-sizing: border-box; text-align: center; }
         .btn { width: 100%; padding: 12px; background-color: var(--secondary-color); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s;}
         .btn:hover:not(:disabled) { filter: brightness(0.9); }
         
-        #mainContainer { display: none; max-width: 600px; margin: 0 auto; padding-bottom: 50px;}
-        .header { text-align: center; margin-bottom: 20px; }
-        .search-input { width: 100%; padding: 12px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; box-sizing: border-box; margin-bottom: 20px; outline:none;}
+        #mainContainer { display: none; max-width: 1200px; margin: 0 auto; padding-bottom: 50px;}
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
+        .header h1 { margin: 0; color: var(--primary-color); }
         
-        .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); }
-        .card-top { display: flex; gap: 15px; margin-bottom: 15px; align-items: center;}
-        .card-img { width: 70px; height: 70px; border-radius: 8px; object-fit: cover; background: #eee; }
-        .card-info { flex-grow: 1; }
-        .sku { font-size: 0.8rem; color: #7f8c8d; }
-        .name { font-size: 1.1rem; font-weight: bold; color: var(--primary-color); margin: 3px 0; }
-        .tags { font-size: 0.85rem; color: #7f8c8d; background: #eee; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+        .top-actions { display: flex; gap: 10px; width: 100%; max-width: 500px;}
+        .search-input { flex-grow: 1; padding: 12px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; outline:none; }
+        .add-btn { background: #27ae60; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; white-space: nowrap;}
         
-        /* 跨店庫存顯示區塊 */
-        .stock-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; border-top: 1px solid #eee; padding-top: 15px;}
-        .stock-item { padding: 8px 4px; border-radius: 8px; background: #f8f9fa; }
-        .stock-label { font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; color: #555;}
-        .stock-qty { font-size: 1.2rem; font-weight: bold; }
+        /* 網格卡片排版 */
+        #listContainer { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         
-        /* 各分店專屬顏色 */
-        .main-store .stock-label { color: var(--main); }
-        .main-store .stock-qty { color: var(--main); }
-        .zx-store .stock-label { color: var(--zhongxiao); }
-        .zx-store .stock-qty { color: var(--zhongxiao); }
-        .ap-store .stock-label { color: var(--apon); }
-        .ap-store .stock-qty { color: var(--apon); }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative;}
+        .card-photo { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; background: #eee; margin-bottom: 15px;}
+        .card-title { margin: 0 0 15px 0; color: var(--primary-color); font-size: 1.3rem; text-align: center;}
         
-        .total-banner { background: #34495e; color: white; text-align: center; padding: 6px; border-radius: 6px; font-size: 0.9rem; font-weight: bold; margin-top: 10px;}
+        .stock-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 1.1rem;}
+        .stock-row:last-of-type { border-bottom: none; font-weight: bold; font-size: 1.2rem; margin-top: 5px; color: #d35400;}
+        .stock-row .val { font-weight: bold; }
+        
+        .label-main { color: var(--main); }
+        .label-zx { color: var(--zhongxiao); }
+        .label-ap { color: var(--apon); }
+        
+        .admin-actions { display: none; margin-top: 15px; gap: 10px; }
+        .admin-actions button { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .edit-btn { background: #f39c12; color: white; }
+        .delete-btn { background: #e74c3c; color: white; }
+
+        /* 新增/編輯 Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;}
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;}
+        .form-group input[type="file"] { padding: 5px; }
     </style>
 </head>
 <body>
 
 <div id="loginScreen">
     <div class="login-box">
-        <h2 style="color:#2c3e50; margin-top:0;">🤝 共用庫存查詢</h2>
-        <input type="password" id="passwordInput" class="login-input" placeholder="查詢授權碼">
-        <button class="btn" id="loginBtn" onclick="checkPassword()">登入系統</button>
+        <h2 style="color:var(--secondary-color); margin-top:0;">🤝 跨店共用庫存</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-15px;">分店查詢請輸入 8888<br>管理員新增請輸入管理者密碼</p>
+        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼">
+        <button class="btn" id="loginBtn" onclick="checkPassword()">進入系統</button>
         <p id="errorMsg" style="color:red; display:none; font-size:0.9rem; font-weight:bold;">密碼錯誤</p>
     </div>
 </div>
 
 <div id="mainContainer">
     <div class="header">
-        <h2 style="color:var(--secondary-color); margin-bottom:5px;">🤝 跨店共用庫存查詢網</h2>
-        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:0;">即時查看共用倉庫餘裕與各店領用狀況</p>
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋品名、用途、編號...">
+        <h1>🤝 共用資源調度池</h1>
+        <div class="top-actions">
+            <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋品名...">
+            <button class="add-btn" id="showAddBtn" onclick="openModal()">➕ 新增物品</button>
+        </div>
     </div>
     <div id="listContainer"></div>
+</div>
+
+<!-- 新增/編輯 Modal -->
+<div id="itemModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalTitle" style="margin-top:0; color:var(--primary-color);">新增共用物品</h2>
+        <input type="hidden" id="editId">
+        <div class="form-group">
+            <label>上傳照片 (會自動壓縮)</label>
+            <input type="file" id="photoInput" accept="image/*">
+            <img id="previewPhoto" style="width:100%; height:120px; object-fit:cover; border-radius:6px; margin-top:10px; display:none; background:#eee;">
+        </div>
+        <div class="form-group">
+            <label>品名</label>
+            <input type="text" id="nameInput" placeholder="例如：金色高腳杯" required>
+        </div>
+        <div class="form-group">
+            <label class="label-main">🏬 總部/共用倉庫 (數量)</label>
+            <input type="number" id="qtyMain" value="0" min="0">
+        </div>
+        <div class="form-group">
+            <label class="label-zx">📍 忠孝店 (已外借數量)</label>
+            <input type="number" id="qtyZx" value="0" min="0">
+        </div>
+        <div class="form-group">
+            <label class="label-ap">📍 艾朋店 (已外借數量)</label>
+            <input type="number" id="qtyAp" value="0" min="0">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:25px;">
+            <button class="btn" style="background:#95a5a6;" onclick="closeModal()">取消</button>
+            <button class="btn" id="saveBtn" onclick="saveItem()">💾 儲存</button>
+        </div>
+    </div>
 </div>
 
 <script>
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
     let inventoryData = [];
+    let isAdmin = false;
+    let currentPhotoBase64 = null;
 
     async function checkPassword() {
         const input = document.getElementById('passwordInput').value;
         const btn = document.getElementById('loginBtn');
-        btn.disabled = true;
-        btn.innerText = "驗證中...";
+        btn.disabled = true; btn.innerText = "驗證中...";
         document.getElementById('errorMsg').style.display = 'none';
 
         try {
-            // 與員工盤點系統共用一組密碼，方便統一管理
-            const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': input }, body: JSON.stringify({ action: 'login_emp' }) });
-            if (res.ok) { 
-                sessionStorage.setItem('branchToken', input); 
-                btn.innerText = "下載資料中 📦..."; 
-                await loadData(); 
-            } else { 
-                document.getElementById('errorMsg').style.display = 'block'; 
-                btn.disabled = false;
-                btn.innerText = "登入系統";
+            const resAdmin = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': input }, body: JSON.stringify({ action: 'login' }) });
+            if (resAdmin.ok) {
+                isAdmin = true;
+                sessionStorage.setItem('adminToken', input);
+                await loadData(input, true);
+                return;
             }
-        } catch (e) { 
-            alert("連線失敗"); 
-            btn.disabled = false;
-            btn.innerText = "登入系統";
-        }
+            
+            const resEmp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': input }, body: JSON.stringify({ action: 'login_emp' }) });
+            if (resEmp.ok) {
+                isAdmin = false;
+                await loadData(input, false);
+                return;
+            }
+            
+            document.getElementById('errorMsg').style.display = 'block'; 
+            btn.disabled = false; btn.innerText = "進入系統";
+        } catch (e) { alert("連線失敗"); btn.disabled = false; btn.innerText = "進入系統"; }
     }
 
-    async function loadData() {
+    async function loadData(token, isManager) {
         try {
-            const res = await fetch(API_URL);
+            const headers = { 'Content-Type': 'application/json' };
+            if (isManager) headers['X-Admin-Password'] = token;
+            else headers['X-Employee-Password'] = token;
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ action: 'getShared' }) // 💡 呼叫專屬的新倉庫
+            });
+            
             inventoryData = await res.json();
             
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainContainer').style.display = 'block';
+            
+            if (isAdmin) {
+                document.getElementById('showAddBtn').style.display = 'block';
+            }
             renderList();
-        } catch(e) { 
-            alert("資料載入失敗，請檢查網路。"); 
-            document.getElementById('loginBtn').disabled = false;
-            document.getElementById('loginBtn').innerText = "登入系統";
-        }
+        } catch(e) { alert("資料載入失敗"); }
     }
 
     function renderList() {
@@ -114,53 +171,48 @@
 
         const displayItems = inventoryData.filter(item => {
             if (!query) return true;
-            const text = [
-                item.productId, item.productName, item.purpose, item.spec, item.vendor
-            ].map(s => s || '').join(' ').toLowerCase();
-            return text.includes(query);
+            return (item.productName || '').toLowerCase().includes(query);
         });
 
         if (displayItems.length === 0) {
-            list.innerHTML = '<p style="text-align:center; color:#7f8c8d; padding:30px;">找不到符合的商品。</p>';
+            list.innerHTML = '<p style="text-align:center; grid-column: 1 / -1; color:#7f8c8d; padding:30px;">目前沒有任何物品。</p>';
             return;
         }
 
         displayItems.forEach(item => {
-            const photo = item.photo ? `<img src="${item.photo}" class="card-img">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;color:#999;">無圖</div>`;
-            const purposeTag = item.purpose ? `<span class="tags">${item.purpose}</span>` : '';
+            const photo = item.photo ? `<img src="${item.photo}" class="card-photo">` : `<div class="card-photo" style="display:flex;align-items:center;justify-content:center;color:#999;">無圖片</div>`;
+            const main = item.quantityMain || 0;
+            const zx = item.quantityZx || 0;
+            const ap = item.quantityAp || 0;
+            const total = main + zx + ap;
             
-            // 💡 將原本的「總部」邏輯改名為「共用倉庫 (可調度)」
-            const sharedQty = (item.quantityOnsite || 0) + (item.quantity || 0); 
-            const zxQty = item.borrowZhongxiao || 0;
-            const apQty = item.borrowApon || 0;
-            const totalQty = sharedQty + zxQty + apQty + (item.borrowOther || 0);
+            let adminHtml = '';
+            if (isAdmin) {
+                adminHtml = `
+                    <div class="admin-actions" style="display:flex;">
+                        <button class="edit-btn" onclick="editItem('${item.id}')">✏️ 編輯</button>
+                        <button class="delete-btn" onclick="deleteItem('${item.id}')">🗑️ 刪除</button>
+                    </div>
+                `;
+            }
 
             list.innerHTML += `
                 <div class="card">
-                    <div class="card-top">
-                        ${photo}
-                        <div class="card-info">
-                            <div class="sku">${item.productId || '無編號'}</div>
-                            <div class="name">${item.productName || '未命名'}</div>
-                            ${purposeTag}
-                        </div>
+                    ${photo}
+                    <h3 class="card-title">${item.productName || '未命名'}</h3>
+                    <div class="stock-row label-main">
+                        <span>🏬 總部/共用倉庫 (可調度)</span><span class="val">${main}</span>
                     </div>
-                    
-                    <div class="stock-grid">
-                        <div class="stock-item main-store">
-                            <div class="stock-label">📦 共用倉庫<br>(可調度)</div>
-                            <div class="stock-qty">${sharedQty}</div>
-                        </div>
-                        <div class="stock-item zx-store">
-                            <div class="stock-label">📍 忠孝店<br>(已領用)</div>
-                            <div class="stock-qty">${zxQty}</div>
-                        </div>
-                        <div class="stock-item ap-store">
-                            <div class="stock-label">📍 艾朋店<br>(已領用)</div>
-                            <div class="stock-qty">${apQty}</div>
-                        </div>
+                    <div class="stock-row label-zx">
+                        <span>📍 忠孝店 (已外借)</span><span class="val">${zx}</span>
                     </div>
-                    <div class="total-banner">所有店總資產：${totalQty} 件</div>
+                    <div class="stock-row label-ap">
+                        <span>📍 艾朋店 (已外借)</span><span class="val">${ap}</span>
+                    </div>
+                    <div class="stock-row">
+                        <span>📦 系統總數量</span><span class="val">${total}</span>
+                    </div>
+                    ${adminHtml}
                 </div>
             `;
         });
@@ -168,7 +220,133 @@
 
     document.getElementById('searchInput').addEventListener('input', renderList);
 
-    if (sessionStorage.getItem('branchToken')) { loadData(); }
+    // 💡 照片自動壓縮處理
+    document.getElementById('photoInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX = 600; // 共用庫存只需小尺寸即可
+                let w = img.width; let h = img.height;
+                if (w > h && w > MAX) { h *= MAX / w; w = MAX; } 
+                else if (h > MAX) { w *= MAX / h; h = MAX; }
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                
+                const preview = document.getElementById('previewPhoto');
+                preview.src = currentPhotoBase64;
+                preview.style.display = 'block';
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function openModal() {
+        document.getElementById('editId').value = '';
+        document.getElementById('nameInput').value = '';
+        document.getElementById('qtyMain').value = 0;
+        document.getElementById('qtyZx').value = 0;
+        document.getElementById('qtyAp').value = 0;
+        document.getElementById('photoInput').value = '';
+        document.getElementById('previewPhoto').style.display = 'none';
+        currentPhotoBase64 = null;
+        
+        document.getElementById('modalTitle').innerText = '新增共用物品';
+        document.getElementById('itemModal').style.display = 'flex';
+    }
+
+    function editItem(id) {
+        const item = inventoryData.find(i => i.id === id);
+        if(!item) return;
+        
+        document.getElementById('editId').value = item.id;
+        document.getElementById('nameInput').value = item.productName || '';
+        document.getElementById('qtyMain').value = item.quantityMain || 0;
+        document.getElementById('qtyZx').value = item.quantityZx || 0;
+        document.getElementById('qtyAp').value = item.quantityAp || 0;
+        
+        document.getElementById('photoInput').value = '';
+        currentPhotoBase64 = null;
+        if(item.photo) {
+            document.getElementById('previewPhoto').src = item.photo;
+            document.getElementById('previewPhoto').style.display = 'block';
+        } else {
+            document.getElementById('previewPhoto').style.display = 'none';
+        }
+
+        document.getElementById('modalTitle').innerText = '編輯共用物品';
+        document.getElementById('itemModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('itemModal').style.display = 'none';
+    }
+
+    async function saveItem() {
+        const name = document.getElementById('nameInput').value.trim();
+        if(!name) return alert("請填寫品名！");
+        
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true; btn.innerText = '儲存中...';
+        
+        const isEdit = document.getElementById('editId').value !== '';
+        const id = isEdit ? document.getElementById('editId').value : Date.now().toString();
+        
+        const payload = {
+            action: 'saveShared',
+            id: id,
+            productName: name,
+            quantityMain: parseInt(document.getElementById('qtyMain').value) || 0,
+            quantityZx: parseInt(document.getElementById('qtyZx').value) || 0,
+            quantityAp: parseInt(document.getElementById('qtyAp').value) || 0,
+        };
+        
+        // 若有上傳新照片才傳送
+        if (currentPhotoBase64) {
+            payload.photo = currentPhotoBase64;
+        } else if (!isEdit) {
+            payload.photo = '';
+        }
+
+        try {
+            const res = await fetch(API_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }, 
+                body: JSON.stringify(payload) 
+            });
+            if (res.ok) {
+                closeModal();
+                await loadData(sessionStorage.getItem('adminToken'), true);
+            } else { throw new Error(); }
+        } catch(e) { alert("儲存失敗！"); }
+        
+        btn.disabled = false; btn.innerText = '💾 儲存';
+    }
+
+    async function deleteItem(id) {
+        if(!confirm("確定要刪除這個共用物品嗎？")) return;
+        try {
+            const res = await fetch(API_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }, 
+                body: JSON.stringify({ action: 'deleteShared', id: id }) 
+            });
+            if (res.ok) {
+                await loadData(sessionStorage.getItem('adminToken'), true);
+            } else { throw new Error(); }
+        } catch(e) { alert("刪除失敗！"); }
+    }
 </script>
+
+<ElicitationsGroup>
+  <Elicitation label="太棒了，完全符合需求！" query="這個獨立系統正是我想找的！接下來還有什麼功能是可以擴充的嗎？"/>
+  <Elicitation label="我還有其他調整想法..." query="這個獨立系統很棒，但我還有一些關於操作介面上的小想法..."/>
+</ElicitationsGroup>
 </body>
 </html>
