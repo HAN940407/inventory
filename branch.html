@@ -22,14 +22,14 @@
         .search-input { flex-grow: 1; padding: 12px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; outline:none; }
         .add-btn { background: #27ae60; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; white-space: nowrap;}
         
-        /* 網格卡片排版 */
         #listContainer { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative;}
         
-        /* 💡 照片游標改為放大鏡 */
-        .card-photo { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; background: #eee; margin-bottom: 15px; cursor: zoom-in; transition: 0.2s;}
-        .card-photo:hover { opacity: 0.9; }
+        /* 💡 徹底解決照片裁切問題：移除固定高度，讓照片依原比例自適應 */
+        .card-photo-wrapper { width: 100%; max-height: 250px; overflow: hidden; border-radius: 8px; background: #f8f9fa; border: 1px solid #eee; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; }
+        .card-photo { width: 100%; height: auto; max-height: 250px; object-fit: contain; cursor: zoom-in; transition: 0.2s; display: block; }
+        .card-photo:hover { opacity: 0.8; }
         
         .card-title { margin: 0 0 15px 0; color: var(--primary-color); font-size: 1.3rem; text-align: center;}
         
@@ -46,27 +46,24 @@
         .edit-btn { background: #f39c12; color: white; }
         .delete-btn { background: #e74c3c; color: white; }
 
-        /* 新增/編輯 Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;}
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
         .form-group input[type="text"], .form-group input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;}
         
-        /* 💡 升級版照片上傳區塊 UI */
         .upload-box { width: 100%; height: 150px; border: 2px dashed #bdc3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f8f9fa; color: #7f8c8d; font-weight: bold; flex-direction: column; transition: 0.2s; }
         .upload-box:hover { border-color: var(--secondary-color); background: #ebf5fb; color: var(--secondary-color); }
         .upload-box span.icon { font-size: 2.5rem; margin-bottom: 5px; }
         
-        /* 💡 照片預覽與刪除按鈕 */
-        .preview-container { position: relative; width: 100%; display: none; }
-        .preview-container img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        /* 💡 預覽區也改為自適應高度 */
+        .preview-container { position: relative; width: 100%; display: none; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; text-align: center; }
+        .preview-container img { max-width: 100%; max-height: 250px; height: auto; object-fit: contain; border-radius: 8px; display: inline-block;}
         .clear-photo-btn { position: absolute; top: 10px; right: 10px; background: rgba(231, 76, 60, 0.9); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1rem; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: 0.2s;}
         .clear-photo-btn:hover { background: #c0392b; transform: scale(1.1); }
 
-        /* 💡 全螢幕放大檢視 (Lightbox) */
         #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; flex-direction: column; cursor: zoom-out;}
-        #lightbox img { max-width: 95%; max-height: 85%; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); }
+        #lightbox img { max-width: 95%; max-height: 85%; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); object-fit: contain;}
         #lightbox-close { color: white; font-size: 1.2rem; margin-top: 15px; padding: 8px 20px; border: 2px solid white; border-radius: 20px; background: transparent; cursor: pointer; }
     </style>
 </head>
@@ -75,7 +72,7 @@
 <div id="loginScreen">
     <div class="login-box">
         <h2 style="color:var(--secondary-color); margin-top:0;">🤝 跨店共用庫存</h2>
-        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-15px;">查詢請輸入 8888<br></p>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-15px;">分店查詢請輸入 8888<br>管理員新增請輸入管理者密碼</p>
         <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼">
         <button class="btn" id="loginBtn" onclick="checkPassword()">進入系統</button>
         <p id="errorMsg" style="color:red; display:none; font-size:0.9rem; font-weight:bold;">密碼錯誤</p>
@@ -93,7 +90,6 @@
     <div id="listContainer"></div>
 </div>
 
-<!-- 新增/編輯 Modal -->
 <div id="itemModal" class="modal">
     <div class="modal-content">
         <h2 id="modalTitle" style="margin-top:0; color:var(--primary-color);">新增共用物品</h2>
@@ -101,16 +97,13 @@
         
         <div class="form-group">
             <label>📸 物品照片</label>
-            <!-- 隱藏原生上傳按鈕，並加入 capture="environment" 喚醒手機相機 -->
             <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;">
             
-            <!-- 美化的點擊拍照區塊 -->
             <div id="photoUploadBox" class="upload-box" onclick="document.getElementById('photoInput').click()">
                 <span class="icon">📷</span>
                 <span>點擊拍照或選擇相片</span>
             </div>
             
-            <!-- 照片預覽與刪除區塊 -->
             <div id="photoPreviewContainer" class="preview-container">
                 <img id="previewPhoto">
                 <button type="button" class="clear-photo-btn" onclick="clearPhoto()" title="移除照片">✖</button>
@@ -122,7 +115,7 @@
             <input type="text" id="nameInput" placeholder="例如：金色高腳杯" required>
         </div>
         <div class="form-group">
-            <label class="label-main">🏬 古亭 (數量)</label>
+            <label class="label-main">🏬 古亭/共用倉庫 (數量)</label>
             <input type="number" id="qtyMain" value="0" min="0">
         </div>
         <div class="form-group">
@@ -140,7 +133,6 @@
     </div>
 </div>
 
-<!-- 💡 全螢幕放大視窗 (Lightbox) -->
 <div id="lightbox" onclick="closeLightbox()">
     <img id="lightbox-img" src="" alt="放大照片">
     <button id="lightbox-close">關閉檢視</button>
@@ -151,7 +143,7 @@
     let inventoryData = [];
     let isAdmin = false;
     let currentPhotoBase64 = null;
-    let photoCleared = false; // 紀錄使用者是否手動刪除了照片
+    let photoCleared = false; 
 
     async function checkPassword() {
         const input = document.getElementById('passwordInput').value;
@@ -220,10 +212,10 @@
         }
 
         displayItems.forEach(item => {
-            // 💡 加入點擊開啟放大圖的 onclick 事件
-            const photo = item.photo 
-                ? `<img src="${item.photo}" class="card-photo" onclick="openLightbox('${item.photo}')" title="點擊放大">` 
-                : `<div class="card-photo" style="display:flex;align-items:center;justify-content:center;color:#999;cursor:default;">無圖片</div>`;
+            // 💡 加入了 card-photo-wrapper 包覆照片，讓照片能自適應完整顯示
+            const photoHtml = item.photo 
+                ? `<div class="card-photo-wrapper"><img src="${item.photo}" class="card-photo" onclick="openLightbox('${item.photo}')" title="點擊放大"></div>` 
+                : `<div class="card-photo-wrapper" style="height:180px;"><div style="display:flex;align-items:center;justify-content:center;color:#999;width:100%;height:100%;">無圖片</div></div>`;
                 
             const main = item.quantityMain || 0;
             const zx = item.quantityZx || 0;
@@ -242,10 +234,10 @@
 
             list.innerHTML += `
                 <div class="card">
-                    ${photo}
+                    ${photoHtml}
                     <h3 class="card-title">${item.productName || '未命名'}</h3>
                     <div class="stock-row label-main">
-                        <span>🏬 古亭 (可調度)</span><span class="val">${main}</span>
+                        <span>🏬 古亭/共用倉庫 (可調度)</span><span class="val">${main}</span>
                     </div>
                     <div class="stock-row label-zx">
                         <span>📍 忠孝店 (已轉出)</span><span class="val">${zx}</span>
@@ -264,7 +256,6 @@
 
     document.getElementById('searchInput').addEventListener('input', renderList);
 
-    // 💡 照片放大鏡 (Lightbox) 控制
     function openLightbox(imgSrc) {
         document.getElementById('lightbox-img').src = imgSrc;
         document.getElementById('lightbox').style.display = 'flex';
@@ -274,7 +265,6 @@
         document.getElementById('lightbox').style.display = 'none';
     }
 
-    // 💡 照片上傳自動壓縮引擎
     document.getElementById('photoInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -282,20 +272,21 @@
         reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
+                // 💡 確保原比例完美保留
                 const canvas = document.createElement('canvas');
                 const MAX = 600; 
                 let w = img.width; let h = img.height;
                 if (w > h && w > MAX) { h *= MAX / w; w = MAX; } 
                 else if (h > MAX) { w *= MAX / h; h = MAX; }
+                
                 canvas.width = w; canvas.height = h;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
                 
                 currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                photoCleared = false; // 有新照片，取消清除標記
+                photoCleared = false; 
                 
-                // 切換介面顯示預覽圖
-                document.getElementById('uploadBox').style.display = 'none';
+                document.getElementById('photoUploadBox').style.display = 'none';
                 document.getElementById('photoPreviewContainer').style.display = 'block';
                 document.getElementById('previewPhoto').src = currentPhotoBase64;
             };
@@ -304,11 +295,10 @@
         reader.readAsDataURL(file);
     });
     
-    // 💡 一鍵刪除/清空照片
     function clearPhoto() {
         document.getElementById('photoInput').value = '';
         currentPhotoBase64 = null;
-        photoCleared = true; // 標記為需要刪除雲端照片
+        photoCleared = true; 
         
         document.getElementById('photoPreviewContainer').style.display = 'none';
         document.getElementById('photoUploadBox').style.display = 'flex';
@@ -321,9 +311,8 @@
         document.getElementById('qtyZx').value = 0;
         document.getElementById('qtyAp').value = 0;
         
-        // 介面重置為可拍照狀態
         clearPhoto();
-        photoCleared = false; // 新增狀態下不需特別清除
+        photoCleared = false; 
         
         document.getElementById('modalTitle').innerText = '新增共用物品';
         document.getElementById('itemModal').style.display = 'flex';
@@ -341,7 +330,7 @@
         
         document.getElementById('photoInput').value = '';
         currentPhotoBase64 = null;
-        photoCleared = false; // 編輯時預設保留舊照片
+        photoCleared = false; 
         
         if(item.photo) {
             document.getElementById('previewPhoto').src = item.photo;
@@ -379,15 +368,13 @@
             quantityAp: parseInt(document.getElementById('qtyAp').value) || 0,
         };
         
-        // 💡 智慧保存機制判斷
         if (currentPhotoBase64) {
-            payload.photo = currentPhotoBase64; // 上傳新照片
+            payload.photo = currentPhotoBase64; 
         } else if (photoCleared) {
-            payload.photo = ''; // 傳送空字串，將雲端舊照片刪除
+            payload.photo = ''; 
         } else if (!isEdit) {
-            payload.photo = ''; // 新增但沒拍照
+            payload.photo = ''; 
         }
-        // 如果是編輯，且沒拍新照也沒按刪除，就不傳 payload.photo，後端會自動保留舊照！
 
         try {
             const res = await fetch(API_URL, { 
@@ -418,10 +405,5 @@
         } catch(e) { alert("刪除失敗！"); }
     }
 </script>
-
-<ElicitationsGroup>
-  <Elicitation label="太棒了，照片功能完美解決！" query="點擊放大跟手機直連相機的功能真的很實用，接下來我還能怎麼進一步應用這套系統？"/>
-  <Elicitation label="我還有其他調整想法..." query="這份檔案很好，但我對介面的文字或功能還有一個小小的想法想修改..."/>
-</ElicitationsGroup>
 </body>
 </html>
