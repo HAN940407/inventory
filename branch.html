@@ -6,7 +6,7 @@
     <title>跨店共用庫存管理系統</title>
     <style>
         :root { --primary-color: #2c3e50; --secondary-color: #3498db; --bg-color: #f4f6f9; --zhongxiao: #27ae60; --apon: #8e44ad; --main: #d35400; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; -webkit-tap-highlight-color: transparent;}
         
         #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .login-box { background: white; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
@@ -26,7 +26,11 @@
         #listContainer { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative;}
-        .card-photo { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; background: #eee; margin-bottom: 15px;}
+        
+        /* 💡 照片游標改為放大鏡 */
+        .card-photo { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; background: #eee; margin-bottom: 15px; cursor: zoom-in; transition: 0.2s;}
+        .card-photo:hover { opacity: 0.9; }
+        
         .card-title { margin: 0 0 15px 0; color: var(--primary-color); font-size: 1.3rem; text-align: center;}
         
         .stock-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 1.1rem;}
@@ -46,9 +50,24 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;}
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
         .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;}
-        .form-group input[type="file"] { padding: 5px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        .form-group input[type="text"], .form-group input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;}
+        
+        /* 💡 升級版照片上傳區塊 UI */
+        .upload-box { width: 100%; height: 150px; border: 2px dashed #bdc3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f8f9fa; color: #7f8c8d; font-weight: bold; flex-direction: column; transition: 0.2s; }
+        .upload-box:hover { border-color: var(--secondary-color); background: #ebf5fb; color: var(--secondary-color); }
+        .upload-box span.icon { font-size: 2.5rem; margin-bottom: 5px; }
+        
+        /* 💡 照片預覽與刪除按鈕 */
+        .preview-container { position: relative; width: 100%; display: none; }
+        .preview-container img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .clear-photo-btn { position: absolute; top: 10px; right: 10px; background: rgba(231, 76, 60, 0.9); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1rem; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: 0.2s;}
+        .clear-photo-btn:hover { background: #c0392b; transform: scale(1.1); }
+
+        /* 💡 全螢幕放大檢視 (Lightbox) */
+        #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; flex-direction: column; cursor: zoom-out;}
+        #lightbox img { max-width: 95%; max-height: 85%; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); }
+        #lightbox-close { color: white; font-size: 1.2rem; margin-top: 15px; padding: 8px 20px; border: 2px solid white; border-radius: 20px; background: transparent; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -79,11 +98,25 @@
     <div class="modal-content">
         <h2 id="modalTitle" style="margin-top:0; color:var(--primary-color);">新增共用物品</h2>
         <input type="hidden" id="editId">
+        
         <div class="form-group">
-            <label>上傳照片 (會自動壓縮)</label>
-            <input type="file" id="photoInput" accept="image/*">
-            <img id="previewPhoto" style="width:100%; height:120px; object-fit:cover; border-radius:6px; margin-top:10px; display:none; background:#eee;">
+            <label>📸 物品照片</label>
+            <!-- 隱藏原生上傳按鈕，並加入 capture="environment" 喚醒手機相機 -->
+            <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;">
+            
+            <!-- 美化的點擊拍照區塊 -->
+            <div id="photoUploadBox" class="upload-box" onclick="document.getElementById('photoInput').click()">
+                <span class="icon">📷</span>
+                <span>點擊拍照或選擇相片</span>
+            </div>
+            
+            <!-- 照片預覽與刪除區塊 -->
+            <div id="photoPreviewContainer" class="preview-container">
+                <img id="previewPhoto">
+                <button type="button" class="clear-photo-btn" onclick="clearPhoto()" title="移除照片">✖</button>
+            </div>
         </div>
+
         <div class="form-group">
             <label>品名</label>
             <input type="text" id="nameInput" placeholder="例如：金色高腳杯" required>
@@ -107,11 +140,18 @@
     </div>
 </div>
 
+<!-- 💡 全螢幕放大視窗 (Lightbox) -->
+<div id="lightbox" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="放大照片">
+    <button id="lightbox-close">關閉檢視</button>
+</div>
+
 <script>
     const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
     let inventoryData = [];
     let isAdmin = false;
     let currentPhotoBase64 = null;
+    let photoCleared = false; // 紀錄使用者是否手動刪除了照片
 
     async function checkPassword() {
         const input = document.getElementById('passwordInput').value;
@@ -149,7 +189,7 @@
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: headers,
-                body: JSON.stringify({ action: 'getShared' }) // 💡 呼叫專屬的新倉庫
+                body: JSON.stringify({ action: 'getShared' })
             });
             
             inventoryData = await res.json();
@@ -180,7 +220,11 @@
         }
 
         displayItems.forEach(item => {
-            const photo = item.photo ? `<img src="${item.photo}" class="card-photo">` : `<div class="card-photo" style="display:flex;align-items:center;justify-content:center;color:#999;">無圖片</div>`;
+            // 💡 加入點擊開啟放大圖的 onclick 事件
+            const photo = item.photo 
+                ? `<img src="${item.photo}" class="card-photo" onclick="openLightbox('${item.photo}')" title="點擊放大">` 
+                : `<div class="card-photo" style="display:flex;align-items:center;justify-content:center;color:#999;cursor:default;">無圖片</div>`;
+                
             const main = item.quantityMain || 0;
             const zx = item.quantityZx || 0;
             const ap = item.quantityAp || 0;
@@ -220,7 +264,17 @@
 
     document.getElementById('searchInput').addEventListener('input', renderList);
 
-    // 💡 照片自動壓縮處理
+    // 💡 照片放大鏡 (Lightbox) 控制
+    function openLightbox(imgSrc) {
+        document.getElementById('lightbox-img').src = imgSrc;
+        document.getElementById('lightbox').style.display = 'flex';
+    }
+    
+    function closeLightbox() {
+        document.getElementById('lightbox').style.display = 'none';
+    }
+
+    // 💡 照片上傳自動壓縮引擎
     document.getElementById('photoInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -229,23 +283,36 @@
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX = 600; // 共用庫存只需小尺寸即可
+                const MAX = 600; 
                 let w = img.width; let h = img.height;
                 if (w > h && w > MAX) { h *= MAX / w; w = MAX; } 
                 else if (h > MAX) { w *= MAX / h; h = MAX; }
                 canvas.width = w; canvas.height = h;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
-                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
                 
-                const preview = document.getElementById('previewPhoto');
-                preview.src = currentPhotoBase64;
-                preview.style.display = 'block';
+                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                photoCleared = false; // 有新照片，取消清除標記
+                
+                // 切換介面顯示預覽圖
+                document.getElementById('uploadBox').style.display = 'none';
+                document.getElementById('photoPreviewContainer').style.display = 'block';
+                document.getElementById('previewPhoto').src = currentPhotoBase64;
             };
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
     });
+    
+    // 💡 一鍵刪除/清空照片
+    function clearPhoto() {
+        document.getElementById('photoInput').value = '';
+        currentPhotoBase64 = null;
+        photoCleared = true; // 標記為需要刪除雲端照片
+        
+        document.getElementById('photoPreviewContainer').style.display = 'none';
+        document.getElementById('photoUploadBox').style.display = 'flex';
+    }
 
     function openModal() {
         document.getElementById('editId').value = '';
@@ -253,9 +320,10 @@
         document.getElementById('qtyMain').value = 0;
         document.getElementById('qtyZx').value = 0;
         document.getElementById('qtyAp').value = 0;
-        document.getElementById('photoInput').value = '';
-        document.getElementById('previewPhoto').style.display = 'none';
-        currentPhotoBase64 = null;
+        
+        // 介面重置為可拍照狀態
+        clearPhoto();
+        photoCleared = false; // 新增狀態下不需特別清除
         
         document.getElementById('modalTitle').innerText = '新增共用物品';
         document.getElementById('itemModal').style.display = 'flex';
@@ -273,11 +341,15 @@
         
         document.getElementById('photoInput').value = '';
         currentPhotoBase64 = null;
+        photoCleared = false; // 編輯時預設保留舊照片
+        
         if(item.photo) {
             document.getElementById('previewPhoto').src = item.photo;
-            document.getElementById('previewPhoto').style.display = 'block';
+            document.getElementById('photoPreviewContainer').style.display = 'block';
+            document.getElementById('photoUploadBox').style.display = 'none';
         } else {
-            document.getElementById('previewPhoto').style.display = 'none';
+            document.getElementById('photoPreviewContainer').style.display = 'none';
+            document.getElementById('photoUploadBox').style.display = 'flex';
         }
 
         document.getElementById('modalTitle').innerText = '編輯共用物品';
@@ -307,12 +379,15 @@
             quantityAp: parseInt(document.getElementById('qtyAp').value) || 0,
         };
         
-        // 若有上傳新照片才傳送
+        // 💡 智慧保存機制判斷
         if (currentPhotoBase64) {
-            payload.photo = currentPhotoBase64;
+            payload.photo = currentPhotoBase64; // 上傳新照片
+        } else if (photoCleared) {
+            payload.photo = ''; // 傳送空字串，將雲端舊照片刪除
         } else if (!isEdit) {
-            payload.photo = '';
+            payload.photo = ''; // 新增但沒拍照
         }
+        // 如果是編輯，且沒拍新照也沒按刪除，就不傳 payload.photo，後端會自動保留舊照！
 
         try {
             const res = await fetch(API_URL, { 
@@ -345,8 +420,8 @@
 </script>
 
 <ElicitationsGroup>
-  <Elicitation label="太棒了，完全符合需求！" query="這個獨立系統正是我想找的！接下來還有什麼功能是可以擴充的嗎？"/>
-  <Elicitation label="我還有其他調整想法..." query="這個獨立系統很棒，但我還有一些關於操作介面上的小想法..."/>
+  <Elicitation label="太棒了，照片功能完美解決！" query="點擊放大跟手機直連相機的功能真的很實用，接下來我還能怎麼進一步應用這套系統？"/>
+  <Elicitation label="我還有其他調整想法..." query="這份檔案很好，但我對介面的文字或功能還有一個小小的想法想修改..."/>
 </ElicitationsGroup>
 </body>
 </html>
