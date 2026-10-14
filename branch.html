@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跨店共用庫存管理系統</title>
+    <title>共用庫存</title>
     <style>
         :root { --primary-color: #2c3e50; --secondary-color: #3498db; --bg-color: #f4f6f9; --zhongxiao: #27ae60; --apon: #8e44ad; --main: #d35400; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; -webkit-tap-highlight-color: transparent;}
@@ -71,7 +71,7 @@
 
 <div id="loginScreen">
     <div class="login-box">
-        <h2 style="color:var(--secondary-color); margin-top:0;">🤝 跨店共用庫存</h2>
+        <h2 style="color:var(--secondary-color); margin-top:0;">🤝 共用庫存</h2>
         <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-15px;">分店查詢請輸入 8888<br>管理員新增請輸入管理者密碼</p>
         <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼">
         <button class="btn" id="loginBtn" onclick="checkPassword()">進入系統</button>
@@ -81,7 +81,7 @@
 
 <div id="mainContainer">
     <div class="header">
-        <h1>🤝 共用資源調度池</h1>
+        <h1>共用庫存</h1>
         <div class="top-actions">
             <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋品名...">
             <button class="add-btn" id="showAddBtn" onclick="openModal()">➕ 新增物品</button>
@@ -119,11 +119,11 @@
             <input type="number" id="qtyMain" value="0" min="0">
         </div>
         <div class="form-group">
-            <label class="label-zx">📍 忠孝店 (已轉出數量)</label>
+            <label class="label-zx">📍 忠孝店 (已轉入數量)</label>
             <input type="number" id="qtyZx" value="0" min="0">
         </div>
         <div class="form-group">
-            <label class="label-ap">📍 艾朋店 (已轉出數量)</label>
+            <label class="label-ap">📍 艾朋店 (已轉入數量)</label>
             <input type="number" id="qtyAp" value="0" min="0">
         </div>
         <div style="display:flex; gap:10px; margin-top:25px;">
@@ -240,10 +240,10 @@
                         <span>🏬 古亭/共用倉庫 (可調度)</span><span class="val">${main}</span>
                     </div>
                     <div class="stock-row label-zx">
-                        <span>📍 忠孝店 (已轉出)</span><span class="val">${zx}</span>
+                        <span>📍 忠孝店 (已轉入)</span><span class="val">${zx}</span>
                     </div>
                     <div class="stock-row label-ap">
-                        <span>📍 艾朋店 (已轉出)</span><span class="val">${ap}</span>
+                        <span>📍 艾朋店 (已轉入)</span><span class="val">${ap}</span>
                     </div>
                     <div class="stock-row">
                         <span>📦 系統總數量</span><span class="val">${total}</span>
