@@ -76,6 +76,7 @@
     let inventoryData = [];
     let selectedGroup = '';
     let warnedItems = new Set();
+    let cancelCount = {}; // 💡 記錄每個品項被按「取消」的次數
 
     async function checkPassword() {
         const input = document.getElementById('passwordInput').value;
@@ -148,13 +149,6 @@
         const myAllItems = inventoryData.filter(item => (item.assignedGroup || '').trim() === selectedGroup && item.auditMode !== 'SKIP');
         
         const targetTotalQty = myAllItems.reduce((sum, item) => sum + (item.quantityOnsite || 0), 0);
-        const doneTotalQty = myAllItems.reduce((sum, item) => {
-            if (item.auditOnsite !== null && item.auditOnsite !== undefined) {
-                return sum + parseInt(item.auditOnsite);
-            }
-            return sum;
-        }, 0);
-
         const allSubmitted = myAllItems.length > 0 && myAllItems.every(i => i.auditOnsite !== null && i.auditOnsite !== undefined);
         
         let progressStyle = allSubmitted 
@@ -171,7 +165,6 @@
             </span>`;
     }
 
-    // 💡 新增：自動恢復按鈕狀態功能
     function resetWarning(id) {
         if (warnedItems.has(id)) {
             warnedItems.delete(id);
@@ -217,7 +210,6 @@
                 btnHtml = `<button class="audit-btn" id="btn-${item.id}" onclick="submitAudit(${item.id})">送出</button>`;
             }
             
-            // 💡 在 input 加上 oninput="resetWarning()"，數字一改變就解除紅色警告狀態
             const inputHtml = (item.auditOnsite !== null && item.auditOnsite !== undefined) 
                 ? `<input type="number" class="audit-input" value="${item.auditOnsite}" disabled>` 
                 : `<input type="number" class="audit-input" id="input-${item.id}" placeholder="數量" min="0" oninput="resetWarning(${item.id})">`;
@@ -254,21 +246,30 @@
         const diff = Math.abs(val - systemQty);
         const isMatch = diff <= (item.allowedError || 0);
 
+        // 初始化該品項的取消次數
+        if (cancelCount[id] === undefined) cancelCount[id] = 0;
+
+        // 💡 防試誤邏輯：如果不符合，且還沒進入「強制送出」狀態
         if (!isMatch && !warnedItems.has(id)) {
-            // 💡 升級為 confirm()，提供確定和取消按鈕
-            const userConfirm = confirm(`⚠️ 盤點數量與系統紀錄【不符】！\n\n您輸入的實際數量是：${val}\n\n👉 確定無誤：請按「確定」，接著點擊變紅的「強制送出」按鈕。\n👉 發現打錯：請按「取消」，即可重新輸入數字。`);
-            
-            if (!userConfirm) {
-                // 如果按取消，自動把輸入框裡的數字全選反白，方便直接按新數字覆蓋
-                inputEl.select();
+            if (cancelCount[id] < 2) {
+                const remain = 2 - cancelCount[id];
+                const userConfirm = confirm(`⚠️ 盤點數量與系統紀錄【不符】！\n\n您輸入的數量是：${val}\n(注意：此品項您還有 ${remain} 次取消重來的機會)\n\n👉 確定無誤：請按「確定」，接著點擊變紅的「強制送出」。\n👉 重新點算：請按「取消」修改數字。`);
+                
+                if (!userConfirm) {
+                    cancelCount[id]++; // 扣除一次機會
+                    inputEl.select();
+                    return;
+                }
+                
+                // 若按確定，轉為紅色「強制送出」按鈕
+                warnedItems.add(id); 
+                btn.innerText = "強制送出"; 
+                btn.className = "audit-btn warning"; 
                 return;
+            } else {
+                // 已經取消過 2 次，這是第 3 次輸入且依然不符 -> 直接強制送出！
+                alert(`⚠️ 您已使用完 2 次重來機會！\n\n系統將直接為您送出本次盤點數量 (${val}) 交由後台審核。`);
             }
-            
-            // 按確定的話，就變紅色強制送出狀態
-            warnedItems.add(id); 
-            btn.innerText = "強制送出"; 
-            btn.className = "audit-btn warning"; 
-            return;
         }
 
         btn.innerText = "傳送中..."; btn.disabled = true; btn.className = "audit-btn";
