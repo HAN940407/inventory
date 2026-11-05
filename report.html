@@ -251,6 +251,9 @@
             inventoryData = await res.json();
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainContainer').style.display = 'block';
+            const params = new URLSearchParams(window.location.search);
+            const qParam = params.get('q') || params.get('loc') || '';
+            if (qParam) { document.getElementById('searchInput').value = qParam; }
             renderList();
         } catch (e) {
             showToast("資料載入失敗，請檢查網路");

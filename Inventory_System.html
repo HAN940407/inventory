@@ -150,6 +150,27 @@
         .search-box { padding: 10px 14px; border-radius: 8px; border: 2px solid var(--secondary-color); font-size: 0.96rem; width: 100%; max-width: 300px; outline: none; }
 
         #toastBox { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.95); color: white; padding: 12px 24px; border-radius: 30px; font-weight: bold; font-size: 0.95rem; z-index: 9999; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+
+        .quick-filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .qf-btn { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.88rem; cursor: pointer; transition: 0.2s; }
+        .qf-btn:hover { background: #e2e8f0; }
+        .qf-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+
+        .label-print-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 15px; }
+        .label-card { border: 2px solid #2c3e50; border-radius: 8px; padding: 12px; display: flex; gap: 10px; align-items: center; background: white; page-break-inside: avoid; }
+        .label-qr { width: 72px; height: 72px; flex-shrink: 0; }
+        .label-info { flex-grow: 1; min-width: 0; font-size: 0.85rem; line-height: 1.35; }
+        .label-sku { font-weight: bold; color: #2980b9; font-size: 0.82rem; }
+        .label-name { font-weight: bold; color: #2c3e50; font-size: 0.98rem; margin: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .label-loc { display: inline-block; background: #fdf2e9; color: #d35400; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.78rem; margin-top: 3px; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #labelPrintModal, #labelPrintModal * { visibility: visible; }
+            #labelPrintModal { position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 0; overflow: visible; }
+            #labelPrintModal .modal-content { box-shadow: none; max-width: 100%; max-height: none; transform: none; top: 0; padding: 0; }
+            .no-print { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -175,6 +196,9 @@
             <button type="button" id="lowStockAlertBtn" class="front-btn" style="background:#8e44ad; display:none;" onclick="openLowStockModal()">🚨 低庫存補貨 (0)</button>
             <button type="button" class="front-btn" style="background:#c0392b;" onclick="openBrokenModal()">💥 破損與領料紀錄</button>
             <button type="button" class="front-btn" style="background:#16a085;" onclick="downloadFullBackup()">🛡️ 全庫備份</button>
+            <input type="file" id="restoreBackupInput" accept=".json" style="display:none;" onchange="handleRestoreBackupFile(event)">
+            <button type="button" class="front-btn" style="background:#d35400;" onclick="document.getElementById('restoreBackupInput').click()">♻️ 還原備份</button>
+            <button type="button" class="front-btn" style="background:#34495e;" onclick="openWebhookModal()">🔔 通知設定</button>
             <button type="button" class="front-btn" style="background:#2980b9;" onclick="navigateTo('portal.html')">🏠 總入口</button>
             <button type="button" class="front-btn" onclick="navigateTo('index.html')">📱 前往型錄</button>
             <button type="button" onclick="logout()" class="front-btn logout-btn">🚪 登出</button>
@@ -203,6 +227,7 @@
             <div id="auditBatchToolbar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:#f8f9fa; padding:12px 15px; border-radius:8px; margin-bottom:15px;">
                 <span id="auditSummaryText" style="font-weight:bold; color:#2c3e50; font-size:0.95rem;"></span>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="btn" style="background:#8e44ad; color:white; padding:8px 14px; font-size:0.9rem;" onclick="exportAuditDiffCSV()">📊 匯出盤差結算單</button>
                     <button type="button" class="btn" id="batchApproveMatchBtn" style="background:#27ae60; color:white; padding:8px 14px; font-size:0.9rem;" onclick="batchApproveAudits(true)">⚡ 一鍵核准無差異/容許內</button>
                     <button type="button" class="btn" style="background:#2980b9; color:white; padding:8px 14px; font-size:0.9rem;" onclick="batchApproveAudits(false)">✅ 全部覆蓋核准</button>
                 </div>
@@ -285,6 +310,49 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Webhook 即時通知設定 Modal -->
+    <div id="webhookModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:12px;">
+                <h2 style="color:var(--primary-color); margin:0; font-size:1.35rem;">🔔 即時推播通知設定 (Webhook)</h2>
+                <button type="button" onclick="closeWebhookModal()" style="font-size:2rem; line-height:1; background:none; border:none; cursor:pointer; color:#95a5a6;">&times;</button>
+            </div>
+            <p style="color:#555; font-size:0.92rem; line-height:1.5; margin-top:0;">
+                填入 Discord、Slack 或自訂 Webhook 網址後，當門市員工<strong>「回報破損」</strong>或<strong>「某組別完成 100% 盲盤」</strong>時，系統將自動發送即時訊息通知管理群組。
+            </p>
+            <div class="form-group" style="margin-bottom:18px;">
+                <label>🔗 Webhook URL</label>
+                <input type="text" id="webhookUrlInput" placeholder="https://discord.com/api/webhooks/...">
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn" style="background:#95a5a6; color:white;" onclick="closeWebhookModal()">取消</button>
+                <button type="button" class="btn" style="background:#27ae60; color:white;" onclick="saveWebhookSetting(true)">🚀 儲存並發送測試通知</button>
+                <button type="button" class="btn btn-primary" onclick="saveWebhookSetting(false)">💾 僅儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 層架 / 收納箱 QR Code 標籤列印 Modal -->
+    <div id="labelPrintModal" class="modal">
+        <div class="modal-content" style="max-width: 960px;">
+            <div class="no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:12px; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <h2 style="color:var(--primary-color); margin:0; font-size:1.4rem;">🏷️ 層架與器皿 QR Code 標籤列印</h2>
+                    <span style="font-size:0.88rem; color:#7f8c8d;">手機掃描標籤上的 QR Code 即可直接開啟該商品的型錄或破損回報頁</span>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <select id="qrTargetPage" onchange="renderLabelPrintCards()" style="padding:8px; border-radius:6px; border:1px solid #ccc; font-weight:bold;">
+                        <option value="index.html">📱 掃描打開：前台型錄展示</option>
+                        <option value="report.html">💥 掃描打開：破損與領料頁</option>
+                    </select>
+                    <button type="button" class="btn btn-primary" onclick="window.print()">🖨️ 立即列印 / 存為 PDF</button>
+                    <button type="button" class="btn" style="background:#95a5a6; color:white;" onclick="closeLabelPrintModal()">關閉</button>
+                </div>
+            </div>
+            <div id="labelPrintContainer" class="label-print-grid"></div>
         </div>
     </div>
 
@@ -405,10 +473,21 @@
                 <input type="text" id="adminSearchInput" class="search-box" placeholder="🔍 搜尋編號、品名、廠商、組別、位置...">
                 <button type="button" class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 刪除</button>
                 <button type="button" class="btn btn-optimize" onclick="optimizeOldPhotos()" id="optimizeBtn" title="壓縮之前上傳的過大照片">🚀 最佳化舊照片加速</button>
+                <button type="button" class="btn" style="background-color:#2980b9; color:white;" onclick="openLabelPrintModal()">🏷️ 標籤列印</button>
                 <button type="button" class="btn" style="background-color:#34495e; color:white;" onclick="exportCSV()">📤 匯出 CSV</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
                 <button type="button" class="btn btn-import" onclick="document.getElementById('csvFileInput').click()">📥 導入 CSV</button>
             </div>
+        </div>
+        <div class="quick-filter-bar">
+            <button type="button" class="qf-btn active" data-qf="ALL" onclick="setAdminQuickFilter('ALL')">📂 全部顯示</button>
+            <button type="button" class="qf-btn" data-qf="P" onclick="setAdminQuickFilter('P')">☕ 瓷器 (P)</button>
+            <button type="button" class="qf-btn" data-qf="S" onclick="setAdminQuickFilter('S')">🍴 銀器 (S)</button>
+            <button type="button" class="qf-btn" data-qf="G" onclick="setAdminQuickFilter('G')">🍷 玻璃 (G)</button>
+            <button type="button" class="qf-btn" data-qf="LOW" onclick="setAdminQuickFilter('LOW')">🚨 低於安全水位</button>
+            <button type="button" class="qf-btn" data-qf="AUDIT" onclick="setAdminQuickFilter('AUDIT')">🔔 待審核盲盤</button>
+            <button type="button" class="qf-btn" data-qf="BORROW" onclick="setAdminQuickFilter('BORROW')">🤝 外借中</button>
+            <button type="button" class="qf-btn" data-qf="SKIP" onclick="setAdminQuickFilter('SKIP')">🚫 免盤點</button>
         </div>
         <div class="table-responsive">
             <table>
@@ -465,6 +544,7 @@
     let isSortedByGroup = false;
     let confirmDialogResolver = null;
     let currentLogTab = 'BROKEN';
+    let adminQuickFilter = 'ALL';
 
     let currentPage = 1;
     let itemsPerPage = 50;
@@ -560,6 +640,7 @@
                 if (map.ptNames !== undefined && !document.getElementById('ptNames').value) document.getElementById('ptNames').value = map.ptNames;
                 if (map.regGroups !== undefined) document.getElementById('regGroups').value = map.regGroups;
                 if (map.ptGroups !== undefined) document.getElementById('ptGroups').value = map.ptGroups;
+                if (map.webhookUrl !== undefined) document.getElementById('webhookUrlInput').value = map.webhookUrl;
             }
         } catch (e) {}
     }
@@ -733,9 +814,30 @@
         window.scrollTo({ top: tableOffset - 60, behavior: 'smooth' });
     }
 
+    function setAdminQuickFilter(qf) {
+        adminQuickFilter = qf;
+        document.querySelectorAll('.qf-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-qf') === qf);
+        });
+        applyAdminFilter();
+    }
+
     function applyAdminFilter() {
         const query = document.getElementById('adminSearchInput').value.trim().toLowerCase();
         filteredData = inventoryData.filter(item => {
+            const sku = (item.productId || '').toUpperCase();
+            if (adminQuickFilter === 'P' && !sku.startsWith('P')) return false;
+            if (adminQuickFilter === 'S' && !sku.startsWith('S')) return false;
+            if (adminQuickFilter === 'G' && !sku.startsWith('G')) return false;
+            if (adminQuickFilter === 'LOW') {
+                const ms = item.minStock || 0;
+                const cur = (item.quantityOnsite || 0) + (item.quantity || 0);
+                if (ms <= 0 || cur >= ms) return false;
+            }
+            if (adminQuickFilter === 'AUDIT' && (item.auditOnsite === null || item.auditOnsite === undefined)) return false;
+            if (adminQuickFilter === 'BORROW' && ((item.borrowZhongxiao || 0) + (item.borrowApon || 0) + (item.borrowOther || 0)) <= 0) return false;
+            if (adminQuickFilter === 'SKIP' && item.auditMode !== 'SKIP') return false;
+
             if (!query) return true;
             const text = [
                 item.productId, item.productName, item.vendor,
@@ -781,7 +883,7 @@
             return;
         }
 
-        const isFiltering = document.getElementById('adminSearchInput').value.trim() !== '' || isSortedByGroup;
+        const isFiltering = document.getElementById('adminSearchInput').value.trim() !== '' || isSortedByGroup || adminQuickFilter !== 'ALL';
         const dragClass = isFiltering ? 'drag-handle disabled' : 'drag-handle';
         const dragTitle = isFiltering ? '請先清除搜尋關鍵字或組別排序，再拖拉調整順序' : '按住拖拉調整順序';
 
@@ -1036,6 +1138,159 @@
         link.setAttribute("href", URL.createObjectURL(blob));
         link.setAttribute("download", `低庫存採購建議單_${today}.csv`);
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // 匯出本期盤點差異結算單 (CSV)
+    function exportAuditDiffCSV() {
+        const pendingAudits = inventoryData.filter(i => i.auditOnsite !== null && i.auditOnsite !== undefined);
+        if (pendingAudits.length === 0) return showToast("目前沒有待審核的盤點資料");
+        const csvData = pendingAudits.map(item => {
+            const oldQ = item.quantityOnsite || 0;
+            const newQ = item.auditOnsite;
+            const diff = newQ - oldQ;
+            const margin = item.allowedError || 0;
+            const diffVal = diff * (item.price || 0);
+            let statusStr = "超出誤差";
+            if (diff === 0) statusStr = "完全吻合";
+            else if (Math.abs(diff) <= margin) statusStr = "容許誤差內";
+            return {
+                "負責組別": item.assignedGroup || "未指派",
+                "產品編號": item.productId || "",
+                "品名": item.productName || "",
+                "規格": item.spec || "",
+                "存放位置": item.location || "",
+                "單價": item.price || 0,
+                "帳面現場庫存": oldQ,
+                "盲盤實盤數量": newQ,
+                "容許誤差(±)": margin,
+                "盤盈虧件數": diff > 0 ? `+${diff}` : diff,
+                "盤盈虧金額(NT$)": diffVal,
+                "判定狀態": statusStr
+            };
+        });
+        const csvContent = "\uFEFF" + Papa.unparse(csvData, { header: true });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        link.setAttribute("href", URL.createObjectURL(blob));
+        link.setAttribute("download", `本期盲盤差異結算報表_${today}.csv`);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        showToast("📊 已匯出本期盤點差異結算單！");
+    }
+
+    // 一鍵還原全庫備份 (JSON)
+    function handleRestoreBackupFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const backupObj = JSON.parse(e.target.result);
+                if (!backupObj || !Array.isArray(backupObj.inventory)) {
+                    showToast("⚠️ 備份檔案格式不正確！");
+                    event.target.value = '';
+                    return;
+                }
+                const ok = await askConfirmDialog(
+                    '♻️ 確認還原全系統備份',
+                    `即將從備份檔（備份時間：${backupObj.backupTime || '未知'}）還原：
+` +
+                    `• 主庫存商品：${backupObj.inventory.length} 筆
+` +
+                    `• 跨店共用商品：${(backupObj.shared_inventory || []).length} 筆
+
+` +
+                    `⚠️ 這將覆蓋目前的庫存資料，確定執行還原嗎？`
+                );
+                if (!ok) {
+                    event.target.value = '';
+                    return;
+                }
+                showToast("⏳ 正在還原全庫資料中...");
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ action: 'restoreBackup', backup: backupObj })
+                });
+                if (!res.ok) throw new Error();
+                showToast("✅ 全系統備份已成功還原！");
+                await loadData();
+            } catch (err) {
+                showToast("還原失敗，請確認檔案格式與網路連線");
+            }
+            event.target.value = '';
+        };
+        reader.readAsText(file);
+    }
+
+    // Webhook 通知設定 Modal
+    function openWebhookModal() {
+        document.getElementById('webhookModal').style.display = 'block';
+    }
+    function closeWebhookModal() {
+        document.getElementById('webhookModal').style.display = 'none';
+    }
+    async function saveWebhookSetting(sendTest) {
+        const webhookUrl = document.getElementById('webhookUrlInput').value.trim();
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    action: 'saveSettings',
+                    settings: { webhookUrl },
+                    testWebhook: Boolean(sendTest)
+                })
+            });
+            if (!res.ok) throw new Error();
+            showToast(sendTest ? "✅ 已儲存並發送測試通知！" : "✅ 已儲存 Webhook 設定！");
+            closeWebhookModal();
+        } catch (e) {
+            showToast("儲存失敗");
+        }
+    }
+
+    // 層架 / 器皿 QR Code 標籤列印 Modal
+    function openLabelPrintModal() {
+        document.getElementById('labelPrintModal').style.display = 'block';
+        renderLabelPrintCards();
+    }
+    function closeLabelPrintModal() {
+        document.getElementById('labelPrintModal').style.display = 'none';
+    }
+    function renderLabelPrintCards() {
+        const container = document.getElementById('labelPrintContainer');
+        const targetPage = document.getElementById('qrTargetPage').value;
+        const checkedBoxes = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value, 10));
+        let targetItems = [];
+        if (checkedBoxes.length > 0) {
+            targetItems = inventoryData.filter(i => checkedBoxes.includes(i.id));
+        } else {
+            targetItems = filteredData.slice(0, 60);
+        }
+
+        if (targetItems.length === 0) {
+            container.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#7f8c8d; padding:30px;">沒有可列印的商品，請先勾選或篩選商品。</p>';
+            return;
+        }
+
+        const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + targetPage;
+        container.innerHTML = targetItems.map(item => {
+            const qKey = item.productId || item.productName || '';
+            const fullTargetUrl = `${baseUrl}?q=${encodeURIComponent(qKey)}`;
+            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(fullTargetUrl)}`;
+            return `
+                <div class="label-card">
+                    <img src="${qrImgUrl}" class="label-qr" alt="QR">
+                    <div class="label-info">
+                        <div class="label-sku">${escapeHtml(item.productId || '無編號')}</div>
+                        <div class="label-name">${escapeHtml(item.productName || '未命名')}</div>
+                        ${item.spec ? `<div style="color:#555; font-size:0.78rem;">規格：${escapeHtml(item.spec)}</div>` : ''}
+                        <div class="label-loc">📍 ${escapeHtml(item.location || '未指定位置')}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     // 一鍵全系統完整備份 (JSON)
