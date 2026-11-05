@@ -313,23 +313,42 @@
         </div>
     </div>
 
-    <!-- Webhook 即時通知設定 Modal -->
+    <!-- LINE 與 Webhook 即時通知設定 Modal -->
     <div id="webhookModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 580px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:12px;">
-                <h2 style="color:var(--primary-color); margin:0; font-size:1.35rem;">🔔 即時推播通知設定 (Webhook)</h2>
+                <h2 style="color:#06c755; margin:0; font-size:1.4rem;">💬 LINE 官方帳號 & Webhook 即時推播設定</h2>
                 <button type="button" onclick="closeWebhookModal()" style="font-size:2rem; line-height:1; background:none; border:none; cursor:pointer; color:#95a5a6;">&times;</button>
             </div>
-            <p style="color:#555; font-size:0.92rem; line-height:1.5; margin-top:0;">
-                填入 Discord、Slack 或自訂 Webhook 網址後，當門市員工<strong>「回報破損」</strong>或<strong>「某組別完成 100% 盲盤」</strong>時，系統將自動發送即時訊息通知管理群組。
-            </p>
-            <div class="form-group" style="margin-bottom:18px;">
-                <label>🔗 Webhook URL</label>
-                <input type="text" id="webhookUrlInput" placeholder="https://discord.com/api/webhooks/...">
+
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:0.88rem; color:#166534; line-height:1.55;">
+                <strong>💡 3 分鐘自動綁定 LINE 群組教學：</strong><br>
+                1. 至 LINE Developers 建立 Messaging API Channel，複製下方的 <strong>Channel Access Token (長效權杖)</strong> 貼入第一欄並按「僅儲存」。<br>
+                2. 在 LINE 後台的 <strong>Webhook URL</strong> 填入您的 API 網址：<code style="background:#dcfce7; padding:2px 5px; border-radius:4px;">https://inventory-api.108m09101f.workers.dev</code> 並開啟 <strong>Use webhook</strong>。<br>
+                3. 將該 LINE 官方帳號拉進門市群組，在群組內輸入<strong>「綁定通知」</strong>，機器人就會自動抓取群組 ID 並回覆綁定成功！
             </div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
+
+            <div class="form-group" style="margin-bottom:14px;">
+                <label style="color:#06c755;">🔑 1. LINE Channel Access Token (長效權杖)</label>
+                <input type="text" id="lineTokenInput" placeholder="貼上 LINE Developers 的 Channel access token (long-lived)...">
+            </div>
+
+            <div class="form-group" style="margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label style="margin:0; color:#06c755;">👥 2. LINE 接收對象 ID (群組 C... 或 個人 U...)</label>
+                    <button type="button" onclick="refreshLineTargetId()" style="background:#ebf5fb; border:1px solid #3498db; color:#2980b9; border-radius:5px; padding:3px 8px; font-size:0.8rem; font-weight:bold; cursor:pointer;">🔄 讀取群組自動綁定之 ID</button>
+                </div>
+                <input type="text" id="lineTargetIdInput" placeholder="在群組輸入「綁定通知」後點右上角讀取，或手動貼上 User/Group ID">
+            </div>
+
+            <div class="form-group" style="margin-bottom:18px;">
+                <label style="color:#7f8c8d;">🔗 3. 其他 Webhook URL (選填，如 Discord / Slack)</label>
+                <input type="text" id="webhookUrlInput" placeholder="選填：https://discord.com/api/webhooks/...">
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
                 <button type="button" class="btn" style="background:#95a5a6; color:white;" onclick="closeWebhookModal()">取消</button>
-                <button type="button" class="btn" style="background:#27ae60; color:white;" onclick="saveWebhookSetting(true)">🚀 儲存並發送測試通知</button>
+                <button type="button" class="btn" style="background:#06c755; color:white;" onclick="saveWebhookSetting(true)">🚀 儲存並發送 LINE 測試通知</button>
                 <button type="button" class="btn btn-primary" onclick="saveWebhookSetting(false)">💾 僅儲存</button>
             </div>
         </div>
@@ -642,6 +661,8 @@
                 if (map.regGroups !== undefined) document.getElementById('regGroups').value = map.regGroups;
                 if (map.ptGroups !== undefined) document.getElementById('ptGroups').value = map.ptGroups;
                 if (map.webhookUrl !== undefined) document.getElementById('webhookUrlInput').value = map.webhookUrl;
+                if (map.lineToken !== undefined) document.getElementById('lineTokenInput').value = map.lineToken;
+                if (map.lineTargetId !== undefined) document.getElementById('lineTargetIdInput').value = map.lineTargetId;
             }
         } catch (e) {}
     }
@@ -1231,7 +1252,30 @@
     function closeWebhookModal() {
         document.getElementById('webhookModal').style.display = 'none';
     }
+    async function refreshLineTargetId() {
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ action: 'getSettings' })
+            });
+            if (res.ok) {
+                const map = await res.json();
+                if (map.lineTargetId) {
+                    document.getElementById('lineTargetIdInput').value = map.lineTargetId;
+                    showToast(`✅ 已成功讀取綁定 ID：${map.lineTargetId}`);
+                } else {
+                    showToast("尚未偵測到綁定 ID，請先在 LINE 群組輸入「綁定通知」");
+                }
+            }
+        } catch (e) {
+            showToast("讀取失敗");
+        }
+    }
+
     async function saveWebhookSetting(sendTest) {
+        const lineToken = document.getElementById('lineTokenInput').value.trim();
+        const lineTargetId = document.getElementById('lineTargetIdInput').value.trim();
         const webhookUrl = document.getElementById('webhookUrlInput').value.trim();
         try {
             const res = await fetch(API_URL, {
@@ -1239,13 +1283,13 @@
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
                     action: 'saveSettings',
-                    settings: { webhookUrl },
+                    settings: { lineToken, lineTargetId, webhookUrl },
                     testWebhook: Boolean(sendTest)
                 })
             });
             if (!res.ok) throw new Error();
-            showToast(sendTest ? "✅ 已儲存並發送測試通知！" : "✅ 已儲存 Webhook 設定！");
-            closeWebhookModal();
+            showToast(sendTest ? "✅ 已儲存並發送 LINE 測試通知！" : "✅ 已儲存 LINE 與推播設定！");
+            if (!sendTest) closeWebhookModal();
         } catch (e) {
             showToast("儲存失敗");
         }
