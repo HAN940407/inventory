@@ -311,7 +311,7 @@
         currentData.forEach(item => {
             const formatMoney = (num) => '$' + (num || 0).toLocaleString();
             const photoHtml = item.photo
-                ? `<img src="${escapeHtml(item.photo)}" class="card-img" onclick="openModalById(${item.id})" alt="${escapeHtml(item.productName || '產品圖片')}">`
+                ? `<img src="${escapeHtml(item.photo)}" class="card-img" loading="lazy" onclick="openModalById(${item.id})" alt="${escapeHtml(item.productName || '產品圖片')}">`
                 : `<span class="no-img-text">無圖片</span>`;
 
             const orderHtml = item.orderId ? `<div><span class="info-tag" style="background:#fcf3cf; color:#d4ac0d;">訂購</span>${escapeHtml(item.orderId)}</div>` : '';

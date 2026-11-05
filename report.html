@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>現場破損回報系統</title>
+    <title>現場破損與倉庫領料系統</title>
     <style>
-        :root { --primary-color: #c0392b; --secondary-color: #e74c3c; --bg-color: #fdf2e9; }
+        :root { --primary-color: #c0392b; --secondary-color: #e74c3c; --restock-color: #2980b9; --bg-color: #fdf2e9; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 15px; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 15px; color: #333; transition: background-color 0.25s; }
+        body.mode-restock { background-color: #ebf5fb; }
+
         #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #34495e; display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 15px; }
         .login-box { background: white; padding: 30px; border-radius: 12px; text-align: center; width: 100%; max-width: 340px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .login-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 6px; font-size: 1.1rem; text-align: center; letter-spacing: 2px; outline: none; }
@@ -17,17 +19,23 @@
         .btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
 
         #mainContainer { display: none; max-width: 680px; margin: 0 auto; padding-bottom: 60px; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 8px; flex-wrap: wrap; }
         .nav-btn { background: #34495e; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
         .nav-btn:hover { opacity: 0.9; }
         .nav-btn.history-btn { background: #8e44ad; }
         .nav-btn.logout-btn { background: #7f8c8d; }
 
-        .header { text-align: center; margin-bottom: 20px; }
+        .mode-tabs { display: flex; gap: 10px; margin-bottom: 18px; }
+        .mode-tab { flex: 1; padding: 12px 10px; border-radius: 10px; border: 2px solid transparent; font-weight: bold; font-size: 1rem; cursor: pointer; text-align: center; transition: 0.2s; background: white; color: #555; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+        .mode-tab.active-broken { background: #e74c3c; color: white; border-color: #c0392b; }
+        .mode-tab.active-restock { background: #2980b9; color: white; border-color: #1f618d; }
+
+        .header { text-align: center; margin-bottom: 18px; }
         .search-input { width: 100%; padding: 12px 15px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; margin-bottom: 15px; outline: none; background: white; }
-        .search-input:focus { box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15); }
+        body.mode-restock .search-input { border-color: var(--restock-color); }
 
         .card { background: white; border-radius: 10px; padding: 15px; display: flex; gap: 15px; margin-bottom: 15px; box-shadow: 0 3px 8px rgba(0,0,0,0.06); align-items: flex-start; border-left: 5px solid var(--secondary-color); }
+        body.mode-restock .card { border-left-color: var(--restock-color); }
         .card-img { width: 84px; height: 84px; border-radius: 8px; object-fit: cover; background: #eee; flex-shrink: 0; }
         .card-info { flex-grow: 1; min-width: 0; }
         .sku { font-size: 0.82rem; color: #7f8c8d; }
@@ -35,15 +43,16 @@
         .badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
         .loc { font-size: 0.82rem; color: #d35400; background: #fdf2e9; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
         .onsite-badge { font-size: 0.82rem; color: #2980b9; background: #ebf5fb; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        .warehouse-badge { font-size: 0.82rem; color: #27ae60; background: #eafaf1; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
         .broken-badge { font-size: 0.82rem; color: #c0392b; background: #fdedec; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
 
         .report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
-        .audit-input { width: 80px; padding: 8px; border: 2px solid var(--secondary-color); border-radius: 6px; font-size: 1rem; text-align: center; outline: none; }
+        .audit-input { width: 80px; padding: 8px; border: 2px solid #bdc3c7; border-radius: 6px; font-size: 1rem; text-align: center; outline: none; }
         .note-input { flex: 1; min-width: 140px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.92rem; outline: none; }
-        .note-input:focus { border-color: var(--secondary-color); }
-        .broken-btn { padding: 9px 15px; background: var(--secondary-color); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.2s; }
-        .broken-btn:hover:not(:disabled) { background: var(--primary-color); }
-        .broken-btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .action-btn { padding: 9px 15px; background: var(--secondary-color); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; transition: 0.2s; }
+        body.mode-restock .action-btn { background: var(--restock-color); }
+        .action-btn:hover:not(:disabled) { filter: brightness(0.9); }
+        .action-btn:disabled { background: #bdc3c7 !important; cursor: not-allowed; }
 
         .history-panel { display: none; background: white; border-radius: 10px; padding: 16px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 4px solid #8e44ad; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f1f1; font-size: 0.92rem; gap: 10px; }
@@ -61,10 +70,10 @@
 
 <div id="loginScreen">
     <div class="login-box">
-        <h2 style="color:#e74c3c; margin-top:0;">💥 破損回報系統</h2>
+        <h2 style="color:#e74c3c; margin-top:0;">💥 破損與倉庫領料</h2>
         <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-10px; margin-bottom:18px;">請輸入門市員工或管理員授權碼</p>
         <input type="password" id="passwordInput" class="login-input" placeholder="員工授權碼" onkeydown="if(event.key==='Enter') checkPassword()">
-        <button class="btn" id="loginBtn" onclick="checkPassword()">登入驗證</button>
+        <button type="button" class="btn" id="loginBtn" onclick="checkPassword()">登入驗證</button>
         <p id="errorMsg" style="color:#e74c3c; display:none; font-size:0.9rem; font-weight:bold; margin-top:12px;">密碼錯誤，請重試</p>
         <button type="button" onclick="navigateTo('portal.html')" style="margin-top:16px; background:none; border:none; color:#3498db; font-weight:bold; cursor:pointer; font-size:0.95rem;">🏠 返回系統總入口</button>
     </div>
@@ -74,20 +83,25 @@
     <div class="top-bar">
         <button type="button" class="nav-btn" onclick="navigateTo('portal.html')">🏠 總入口</button>
         <div style="display:flex; gap:8px;">
-            <button type="button" class="nav-btn history-btn" onclick="toggleHistory()">📜 近期回報紀錄</button>
+            <button type="button" class="nav-btn history-btn" onclick="toggleHistory()">📜 近期紀錄</button>
             <button type="button" class="nav-btn logout-btn" onclick="logout()">🚪 登出</button>
         </div>
     </div>
 
+    <div class="mode-tabs">
+        <button type="button" id="tabBroken" class="mode-tab active-broken" onclick="switchMode('BROKEN')">💥 現場破損回報</button>
+        <button type="button" id="tabRestock" class="mode-tab" onclick="switchMode('RESTOCK')">📥 倉庫領料補現場</button>
+    </div>
+
     <div class="header">
-        <h2 style="color:var(--secondary-color); margin-bottom:5px;">💥 現場破損回報區</h2>
-        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:0;">回報後系統將自動扣除現場庫存並記錄時間與原因</p>
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋要回報的商品名稱、用途、編號、位置...">
+        <h2 style="color:var(--secondary-color); margin-bottom:5px;" id="pageTitle">💥 現場破損回報區</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:0;" id="pageSubtitle">回報後系統將自動扣除現場庫存並記錄時間與原因</p>
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋商品名稱、用途、編號、位置...">
     </div>
 
     <div id="historyPanel" class="history-panel">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <strong style="color:#8e44ad; font-size:1.05rem;">📜 最近破損回報紀錄</strong>
+            <strong style="color:#8e44ad; font-size:1.05rem;" id="historyTitle">📜 最近作業紀錄</strong>
             <button type="button" onclick="toggleHistory()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#999;">✖</button>
         </div>
         <div id="historyList" style="max-height:260px; overflow-y:auto;">載入中...</div>
@@ -98,11 +112,11 @@
 
 <div id="confirmModal" class="modal-overlay">
     <div class="modal-box">
-        <h3 id="confirmTitle" style="margin-top:0; color:#c0392b;">🚨 確認回報破損</h3>
+        <h3 id="confirmTitle" style="margin-top:0; color:#c0392b;">確認執行</h3>
         <p id="confirmMessage" style="color:#444; line-height:1.5; white-space:pre-line;"></p>
         <div class="modal-actions">
             <button type="button" style="background:#bdc3c7; color:#333;" onclick="closeConfirm(false)">取消</button>
-            <button type="button" style="background:#e74c3c; color:white;" onclick="closeConfirm(true)">確定扣除</button>
+            <button type="button" id="confirmOkBtn" style="background:#e74c3c; color:white;" onclick="closeConfirm(true)">確定送出</button>
         </div>
     </div>
 </div>
@@ -112,6 +126,7 @@
 <script>
     const API_URL = 'https://inventory-api.108m09101f.workers.dev';
     let inventoryData = [];
+    let currentMode = 'BROKEN'; // 'BROKEN' or 'RESTOCK'
     let confirmResolver = null;
 
     function navigateTo(page) {
@@ -146,10 +161,13 @@
         setTimeout(() => { box.style.display = 'none'; }, 2800);
     }
 
-    function askConfirm(message) {
+    function askConfirm(title, message, btnColor) {
         return new Promise((resolve) => {
             confirmResolver = resolve;
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmTitle').style.color = btnColor;
             document.getElementById('confirmMessage').innerText = message;
+            document.getElementById('confirmOkBtn').style.background = btnColor;
             document.getElementById('confirmModal').style.display = 'flex';
         });
     }
@@ -166,6 +184,35 @@
         return String(str || '').replace(/[&<>"']/g, s => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[s]));
+    }
+
+    function switchMode(mode) {
+        currentMode = mode;
+        const tabBroken = document.getElementById('tabBroken');
+        const tabRestock = document.getElementById('tabRestock');
+        const title = document.getElementById('pageTitle');
+        const subtitle = document.getElementById('pageSubtitle');
+
+        if (mode === 'BROKEN') {
+            document.body.classList.remove('mode-restock');
+            tabBroken.className = 'mode-tab active-broken';
+            tabRestock.className = 'mode-tab';
+            title.innerText = '💥 現場破損回報區';
+            title.style.color = '#e74c3c';
+            subtitle.innerText = '回報後系統將自動扣除「現場庫存」並累加本期破損';
+        } else {
+            document.body.classList.add('mode-restock');
+            tabBroken.className = 'mode-tab';
+            tabRestock.className = 'mode-tab active-restock';
+            title.innerText = '📥 倉庫領料補現場';
+            title.style.color = '#2980b9';
+            subtitle.innerText = '從倉庫拿出新品補充至現場：自動扣除「倉庫庫存」並增加「現場庫存」';
+        }
+
+        renderList();
+        if (document.getElementById('historyPanel').style.display === 'block') {
+            loadHistoryLogs();
+        }
     }
 
     async function checkPassword() {
@@ -219,7 +266,10 @@
         list.innerHTML = '';
 
         if (query === '') {
-            list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:1.05rem; padding:30px;">請在上方輸入關鍵字尋找破損的商品<br>📦 支援品名、編號、位置、用途搜尋</p>';
+            const hint = currentMode === 'BROKEN'
+                ? '請在上方輸入關鍵字尋找破損的商品<br>📦 支援品名、編號、位置、用途搜尋'
+                : '請在上方輸入關鍵字尋找要從倉庫領出補貨的商品<br>📦 系統將自動從「倉庫庫存」轉入「現場庫存」';
+            list.innerHTML = `<p style="text-align:center; color:#7f8c8d; font-size:1.05rem; padding:30px;">${hint}</p>`;
             return;
         }
 
@@ -238,12 +288,20 @@
 
         matched.forEach(item => {
             const photo = item.photo
-                ? `<img src="${escapeHtml(item.photo)}" class="card-img">`
+                ? `<img src="${escapeHtml(item.photo)}" class="card-img" loading="lazy">`
                 : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;color:#888;">無圖</div>`;
             const onsite = item.quantityOnsite || 0;
+            const warehouse = item.quantity || 0;
             const broken = item.brokenCount || 0;
-            const disabledAttr = onsite <= 0 ? 'disabled' : '';
-            const btnText = onsite <= 0 ? '現場無庫存' : '回報扣除';
+
+            let maxAvail = currentMode === 'BROKEN' ? onsite : warehouse;
+            let disabledAttr = maxAvail <= 0 ? 'disabled' : '';
+            let btnText = currentMode === 'BROKEN'
+                ? (onsite <= 0 ? '現場無庫存' : '回報扣除')
+                : (warehouse <= 0 ? '倉庫無庫存' : '領料補現場');
+            let notePlaceholder = currentMode === 'BROKEN'
+                ? '原因/備註 (選填，例：清洗破)'
+                : '領料人/備註 (選填，例：補吧台)';
 
             list.innerHTML += `
                 <div class="card">
@@ -253,13 +311,14 @@
                         <div class="name">${escapeHtml(item.productName || '未命名')}</div>
                         <div class="badge-row">
                             <span class="loc">📍 ${escapeHtml(item.location || '未指定位置')}</span>
-                            <span class="onsite-badge">現場庫存：${onsite}</span>
+                            <span class="onsite-badge">現場：${onsite}</span>
+                            <span class="warehouse-badge">倉庫：${warehouse}</span>
                             ${broken > 0 ? `<span class="broken-badge">本期已破：${broken}</span>` : ''}
                         </div>
                         <div class="report-controls">
-                            <input type="number" class="audit-input" id="broken-${item.id}" placeholder="數量" min="1" max="${onsite}" ${disabledAttr}>
-                            <input type="text" class="note-input" id="note-${item.id}" placeholder="原因/備註 (選填，例：清洗破)" ${disabledAttr}>
-                            <button type="button" class="broken-btn" id="btn-broken-${item.id}" onclick="reportBroken(${item.id})" ${disabledAttr}>${btnText}</button>
+                            <input type="number" class="audit-input" id="qty-${item.id}" placeholder="數量" min="1" max="${maxAvail}" ${disabledAttr}>
+                            <input type="text" class="note-input" id="note-${item.id}" placeholder="${notePlaceholder}" ${disabledAttr}>
+                            <button type="button" class="action-btn" id="btn-act-${item.id}" onclick="submitAction(${item.id})" ${disabledAttr}>${btnText}</button>
                         </div>
                     </div>
                 </div>
@@ -269,60 +328,100 @@
 
     document.getElementById('searchInput').addEventListener('input', renderList);
 
-    async function reportBroken(id) {
-        const inputEl = document.getElementById(`broken-${id}`);
+    async function submitAction(id) {
+        const inputEl = document.getElementById(`qty-${id}`);
         const noteEl = document.getElementById(`note-${id}`);
         const val = parseInt(inputEl.value, 10);
         const item = inventoryData.find(i => i.id === id);
         if (!item) return;
 
         const currentOnsite = item.quantityOnsite || 0;
+        const currentWarehouse = item.quantity || 0;
+
         if (!val || val <= 0) {
-            return showToast("⚠️ 請輸入大於 0 的破損數量！");
-        }
-        if (val > currentOnsite) {
-            return showToast(`⚠️ 回報數量 (${val}) 不可超過目前現場庫存 (${currentOnsite})！`);
+            return showToast("⚠️ 請輸入大於 0 的數量！");
         }
 
         const noteText = (noteEl.value || '').trim();
-        const confirmed = await askConfirm(
-            `確定要回報【${item.productName}】破損 ${val} 個嗎？\n` +
-            `現場庫存將由 ${currentOnsite} 扣減為 ${currentOnsite - val}。` +
-            (noteText ? `\n備註：${noteText}` : '')
-        );
-        if (!confirmed) return;
 
-        const btn = document.getElementById(`btn-broken-${id}`);
-        btn.innerText = "處理中...";
-        btn.disabled = true;
+        if (currentMode === 'BROKEN') {
+            if (val > currentOnsite) {
+                return showToast(`⚠️ 回報數量 (${val}) 不可超過目前現場庫存 (${currentOnsite})！`);
+            }
+            const confirmed = await askConfirm(
+                '🚨 確認回報破損',
+                `確定要回報【${item.productName}】破損 ${val} 個嗎？\n現場庫存將由 ${currentOnsite} 扣減為 ${currentOnsite - val}。` +
+                (noteText ? `\n備註：${noteText}` : ''),
+                '#e74c3c'
+            );
+            if (!confirmed) return;
 
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Employee-Password': getStoredToken()
-                },
-                body: JSON.stringify({ action: 'reportBroken', id: id, amount: val, note: noteText })
-            });
-            const result = await res.json().catch(() => ({}));
-            if (res.ok) {
-                showToast(`✅ 已成功回報並扣除 ${item.productName} ${val} 個`);
-                const refreshRes = await fetch(API_URL);
-                inventoryData = await refreshRes.json();
-                renderList();
-                if (document.getElementById('historyPanel').style.display === 'block') {
-                    loadHistoryLogs();
+            const btn = document.getElementById(`btn-act-${id}`);
+            btn.innerText = "處理中...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Employee-Password': getStoredToken() },
+                    body: JSON.stringify({ action: 'reportBroken', id: id, amount: val, note: noteText })
+                });
+                const result = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    showToast(`✅ 已成功回報並扣除 ${item.productName} ${val} 個`);
+                    const refreshRes = await fetch(API_URL);
+                    inventoryData = await refreshRes.json();
+                    renderList();
+                    if (document.getElementById('historyPanel').style.display === 'block') loadHistoryLogs();
+                } else {
+                    showToast(result.error || "回報失敗，請重試");
+                    btn.innerText = "回報扣除";
+                    btn.disabled = false;
                 }
-            } else {
-                showToast(result.error || "回報失敗，請重試");
+            } catch (e) {
+                showToast("回報失敗，請檢查網路");
                 btn.innerText = "回報扣除";
                 btn.disabled = false;
             }
-        } catch (e) {
-            showToast("回報失敗，請檢查網路");
-            btn.innerText = "回報扣除";
-            btn.disabled = false;
+        } else {
+            if (val > currentWarehouse) {
+                return showToast(`⚠️ 領料數量 (${val}) 不可超過目前倉庫庫存 (${currentWarehouse})！`);
+            }
+            const confirmed = await askConfirm(
+                '📥 確認倉庫領料補現場',
+                `確定從倉庫領出【${item.productName}】${val} 個補充至現場嗎？\n倉庫：${currentWarehouse} ➔ ${currentWarehouse - val}\n現場：${currentOnsite} ➔ ${currentOnsite + val}` +
+                (noteText ? `\n備註：${noteText}` : ''),
+                '#2980b9'
+            );
+            if (!confirmed) return;
+
+            const btn = document.getElementById(`btn-act-${id}`);
+            btn.innerText = "處理中...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Employee-Password': getStoredToken() },
+                    body: JSON.stringify({ action: 'restockOnsite', id: id, amount: val, note: noteText })
+                });
+                const result = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    showToast(`✅ 已從倉庫領出 ${val} 個補充至現場！`);
+                    const refreshRes = await fetch(API_URL);
+                    inventoryData = await refreshRes.json();
+                    renderList();
+                    if (document.getElementById('historyPanel').style.display === 'block') loadHistoryLogs();
+                } else {
+                    showToast(result.error || "領料失敗，請重試");
+                    btn.innerText = "領料補現場";
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                showToast("領料失敗，請檢查網路");
+                btn.innerText = "領料補現場";
+                btn.disabled = false;
+            }
         }
     }
 
@@ -338,6 +437,9 @@
 
     async function loadHistoryLogs() {
         const container = document.getElementById('historyList');
+        const titleEl = document.getElementById('historyTitle');
+        const isBroken = currentMode === 'BROKEN';
+        titleEl.innerText = isBroken ? '📜 最近破損回報紀錄' : '📜 最近倉庫領料補現場紀錄';
         container.innerHTML = '<div style="text-align:center; padding:15px; color:#7f8c8d;">讀取中...</div>';
         try {
             const res = await fetch(API_URL, {
@@ -346,12 +448,12 @@
                     'Content-Type': 'application/json',
                     'X-Employee-Password': getStoredToken()
                 },
-                body: JSON.stringify({ action: 'getBrokenLogs' })
+                body: JSON.stringify({ action: isBroken ? 'getBrokenLogs' : 'getRestockLogs' })
             });
             if (!res.ok) throw new Error();
             const logs = await res.json();
             if (!logs || logs.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:15px; color:#999;">尚無破損回報紀錄</div>';
+                container.innerHTML = '<div style="text-align:center; padding:15px; color:#999;">尚無相關紀錄</div>';
                 return;
             }
             container.innerHTML = logs.slice(0, 30).map(log => `
@@ -361,7 +463,9 @@
                         ${log.note ? `<span style="color:#8e44ad; font-size:0.82rem; margin-left:6px;">(${escapeHtml(log.note)})</span>` : ''}
                         <div style="font-size:0.78rem; color:#95a5a6; margin-top:2px;">🕒 ${escapeHtml(log.createdAt || '')}</div>
                     </div>
-                    <span style="color:#e74c3c; font-weight:bold; white-space:nowrap;">-${log.amount} 件</span>
+                    <span style="color:${isBroken ? '#e74c3c' : '#2980b9'}; font-weight:bold; white-space:nowrap;">
+                        ${isBroken ? `破損 -${log.amount}` : `補現場 +${log.amount}`} 件
+                    </span>
                 </div>
             `).join('');
         } catch (e) {
@@ -369,7 +473,6 @@
         }
     }
 
-    // 若同次瀏覽器已登入過，自動進入系統
     if (getStoredToken()) {
         loadData();
     }

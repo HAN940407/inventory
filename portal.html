@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="庫存管理中心">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
     <title>門市庫存與資源管理中心</title>
     <style>
         :root {
@@ -67,6 +72,12 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             transition: transform 0.2s, box-shadow 0.2s;
             border-left: 6px solid #ccc;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            border-top: none;
+            border-right: none;
+            border-bottom: none;
         }
         .nav-card:hover, .nav-card:active {
             transform: translateY(-2px);
@@ -112,7 +123,6 @@
             font-weight: bold;
         }
 
-        /* 各系統專屬配色 */
         .theme-audit { border-left-color: #3498db; }
         .theme-audit .icon-box { background: #ebf5fb; color: #3498db; }
         .theme-audit .badge { background: #ebf5fb; color: #2980b9; }
@@ -146,12 +156,12 @@
 <div class="container">
     <div class="header">
         <h1>📦 庫存與資源管理中心</h1>
-        <p>請點選您要進入的系統模組</p>
+        <p>請點選您要進入的系統模組（支援加入手機主畫面）</p>
     </div>
 
     <div class="section-title">門市日常與跨店作業</div>
     <div class="nav-grid">
-        <a href="audit.html" class="nav-card theme-audit">
+        <button type="button" onclick="navigateTo('audit.html')" class="nav-card theme-audit">
             <div class="icon-box">📝</div>
             <div class="card-content">
                 <div class="card-title">
@@ -161,33 +171,33 @@
                 <p class="card-desc">依組別點算現場實際數量與回報進度</p>
             </div>
             <div class="arrow">➔</div>
-        </a>
+        </button>
 
-        <a href="report.html" class="nav-card theme-report">
+        <button type="button" onclick="navigateTo('report.html')" class="nav-card theme-report">
             <div class="icon-box">💥</div>
             <div class="card-content">
                 <div class="card-title">
-                    現場破損回報
+                    破損回報 & 倉庫領料
                     <span class="badge">門市員工</span>
                 </div>
-                <p class="card-desc">日常營運破損登記，自動扣除現場庫存</p>
+                <p class="card-desc">日常破損扣除現場庫存、倉庫領新品補回現場登記</p>
             </div>
             <div class="arrow">➔</div>
-        </a>
+        </button>
 
-        <a href="branch.html" class="nav-card theme-branch">
+        <button type="button" onclick="navigateTo('branch.html')" class="nav-card theme-branch">
             <div class="icon-box">🤝</div>
             <div class="card-content">
                 <div class="card-title">
                     跨店共用庫存
                     <span class="badge">古亭 / 忠孝 / 艾朋</span>
                 </div>
-                <p class="card-desc">查詢共用倉庫可調度餘額與各店已轉出數量</p>
+                <p class="card-desc">查詢共用倉庫可調度餘額、各店已轉出數量與快速調撥</p>
             </div>
             <div class="arrow">➔</div>
-        </a>
+        </button>
 
-        <a href="index.html" class="nav-card theme-catalog">
+        <button type="button" onclick="navigateTo('index.html')" class="nav-card theme-catalog">
             <div class="icon-box">📱</div>
             <div class="card-content">
                 <div class="card-title">
@@ -197,28 +207,33 @@
                 <p class="card-desc">瀏覽全店商品照片、規格與基本資訊展示</p>
             </div>
             <div class="arrow">➔</div>
-        </a>
+        </button>
     </div>
 
     <div class="section-title">系統管理專區</div>
     <div class="nav-grid">
-        <a href="Inventory_System.html" class="nav-card theme-admin">
+        <button type="button" onclick="navigateTo('Inventory_System.html')" class="nav-card theme-admin">
             <div class="icon-box">🔒</div>
             <div class="card-content">
                 <div class="card-title">
                     雲端庫存管理後台
                     <span class="badge">管理員專用</span>
                 </div>
-                <p class="card-desc">數據分析、自動派單、盲盤差異審核與總表維護</p>
+                <p class="card-desc">各組盤點進度看板、低庫存預警、一鍵審核與全庫備份</p>
             </div>
             <div class="arrow">➔</div>
-        </a>
+        </button>
     </div>
 
     <div class="footer">
-        Cloud Inventory Portal System
+        Cloud Inventory Portal System v2.0
     </div>
 </div>
 
+<script>
+    function navigateTo(page) {
+        window.location.href = page;
+    }
+</script>
 </body>
 </html>

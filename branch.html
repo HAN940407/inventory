@@ -30,9 +30,10 @@
         .sum-card .sum-label { font-size: 0.85rem; color: #7f8c8d; font-weight: bold; }
         .sum-card .sum-val { font-size: 1.4rem; font-weight: bold; margin-top: 4px; color: var(--primary-color); }
 
-        .top-actions { display: flex; gap: 10px; width: 100%; max-width: 560px; flex-wrap: wrap; }
-        .search-input { flex-grow: 1; min-width: 200px; padding: 11px 14px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; outline: none; background: white; }
-        .add-btn { background: #27ae60; color: white; border: none; padding: 11px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; white-space: nowrap; }
+        .top-actions { display: flex; gap: 8px; width: 100%; max-width: 680px; flex-wrap: wrap; }
+        .search-input { flex-grow: 1; min-width: 180px; padding: 11px 14px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; outline: none; background: white; }
+        .add-btn { background: #27ae60; color: white; border: none; padding: 11px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; white-space: nowrap; }
+        .sync-btn { background: #8e44ad; color: white; border: none; padding: 11px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; white-space: nowrap; }
 
         .filter-tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
         .tab-btn { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 7px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
@@ -92,7 +93,7 @@
         <h2 style="color:var(--secondary-color); margin-top:0;">🤝 跨店共用庫存</h2>
         <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-10px;">分店查詢請輸入 8888<br>管理員調撥與維護請輸入管理密碼</p>
         <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter') checkPassword()">
-        <button class="btn" id="loginBtn" onclick="checkPassword()">進入系統</button>
+        <button type="button" class="btn" id="loginBtn" onclick="checkPassword()">進入系統</button>
         <p id="errorMsg" style="color:#e74c3c; display:none; font-size:0.9rem; font-weight:bold; margin-top:12px;">密碼錯誤</p>
         <button type="button" onclick="navigateTo('portal.html')" style="margin-top:16px; background:none; border:none; color:#3498db; font-weight:bold; cursor:pointer; font-size:0.95rem;">🏠 返回系統總入口</button>
     </div>
@@ -107,6 +108,7 @@
         </div>
         <div class="top-actions">
             <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋共用物品名稱...">
+            <button type="button" class="sync-btn" id="syncMainBtn" onclick="syncFromMainInventory()" title="將主庫存中有忠孝或艾朋外借的品項自動同步過來">🔗 同步主表外借</button>
             <button type="button" class="add-btn" id="showAddBtn" onclick="openModal()">➕ 新增物品</button>
             <button type="button" class="nav-pill" style="background:#7f8c8d;" onclick="logout()">🚪 登出</button>
         </div>
@@ -265,7 +267,7 @@
         const box = document.getElementById('toastBox');
         box.innerText = msg;
         box.style.display = 'block';
-        setTimeout(() => { box.style.display = 'none'; }, 2600);
+        setTimeout(() => { box.style.display = 'none'; }, 2800);
     }
 
     function escapeHtml(str) {
@@ -347,11 +349,13 @@
             const roleBadge = document.getElementById('roleBadge');
             if (isAdmin) {
                 document.getElementById('showAddBtn').style.display = 'block';
+                document.getElementById('syncMainBtn').style.display = 'block';
                 roleBadge.innerText = '👑 管理員模式 (可調撥與編輯)';
                 roleBadge.style.background = '#fef5e7';
                 roleBadge.style.color = '#d68910';
             } else {
                 document.getElementById('showAddBtn').style.display = 'none';
+                document.getElementById('syncMainBtn').style.display = 'none';
                 roleBadge.innerText = '👀 分店檢視模式';
                 roleBadge.style.background = '#ebf5fb';
                 roleBadge.style.color = '#2980b9';
@@ -361,6 +365,49 @@
         } catch (e) {
             showToast("資料載入失敗");
         }
+    }
+
+    // 從主庫存表同步含有忠孝或艾朋外借的品項
+    async function syncFromMainInventory() {
+        const btn = document.getElementById('syncMainBtn');
+        btn.disabled = true;
+        btn.innerText = '同步中...';
+        try {
+            const res = await fetch(API_URL);
+            const mainList = await res.json();
+            const borrowItems = (mainList || []).filter(i => (i.borrowZhongxiao || 0) > 0 || (i.borrowApon || 0) > 0);
+            if (borrowItems.length === 0) {
+                showToast("主庫存目前沒有設定忠孝或艾朋外借的品項");
+                btn.disabled = false;
+                btn.innerText = '🔗 同步主表外借';
+                return;
+            }
+            let syncedCount = 0;
+            for (const mItem of borrowItems) {
+                const match = inventoryData.find(s => s.id === String(mItem.id) || s.productName === mItem.productName);
+                const payload = {
+                    action: 'saveShared',
+                    id: match ? match.id : String(mItem.id),
+                    productName: mItem.productName,
+                    quantityMain: mItem.quantity || 0,
+                    quantityZx: mItem.borrowZhongxiao || 0,
+                    quantityAp: mItem.borrowApon || 0
+                };
+                if (!match && mItem.photo) payload.photo = mItem.photo;
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': activeToken },
+                    body: JSON.stringify(payload)
+                });
+                syncedCount++;
+            }
+            showToast(`✅ 已從主庫存同步 ${syncedCount} 筆跨店外借品項！`);
+            await loadData(activeToken, true);
+        } catch (e) {
+            showToast("同步失敗，請檢查網路");
+        }
+        btn.disabled = false;
+        btn.innerText = '🔗 同步主表外借';
     }
 
     function renderSummary() {
@@ -405,7 +452,7 @@
         displayItems.forEach(item => {
             const safeId = escapeHtml(item.id);
             const photoHtml = item.photo
-                ? `<div class="card-photo-wrapper"><img src="${escapeHtml(item.photo)}" class="card-photo" onclick="openLightboxById('${safeId}')" title="點擊放大"></div>`
+                ? `<div class="card-photo-wrapper"><img src="${escapeHtml(item.photo)}" class="card-photo" loading="lazy" onclick="openLightboxById('${safeId}')" title="點擊放大"></div>`
                 : `<div class="card-photo-wrapper"><div style="display:flex;align-items:center;justify-content:center;color:#999;width:100%;height:100%;">無圖片</div></div>`;
 
             const main = item.quantityMain || 0;
@@ -588,7 +635,6 @@
         btn.innerText = '💾 儲存';
     }
 
-    // 快速調撥邏輯
     function openTransferModal(id) {
         const item = inventoryData.find(i => String(i.id) === String(id));
         if (!item) return;
@@ -740,7 +786,6 @@
         }
     }
 
-    // 自動檢查是否已有登入憑證
     (function autoInit() {
         try {
             const savedAdmin = sessionStorage.getItem('adminToken');
