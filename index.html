@@ -157,6 +157,9 @@
             const params = new URLSearchParams(window.location.search);
             const qParam = params.get('q') || params.get('loc') || '';
             if (qParam) { searchInput.value = qParam; }
+            const params = new URLSearchParams(window.location.search);
+            const qParam = params.get('q') || params.get('loc') || '';
+            if (qParam) { searchInput.value = qParam; }
             applyFilterAndSort();
         } catch (error) {
             gridContainer.innerHTML = '<div class="loading" style="color:#e74c3c;">連線失敗，請檢查網路。</div>';
@@ -314,7 +317,7 @@
         currentData.forEach(item => {
             const formatMoney = (num) => '$' + (num || 0).toLocaleString();
             const photoHtml = item.photo
-                ? `<img src="${escapeHtml(item.photo)}" class="card-img" loading="lazy" onclick="openModalById(${item.id})" alt="${escapeHtml(item.productName || '產品圖片')}">`
+                ? `<img src="${escapeHtml(item.photo)}" class="card-img" loading="lazy" loading="lazy" onclick="openModalById(${item.id})" alt="${escapeHtml(item.productName || '產品圖片')}">`
                 : `<span class="no-img-text">無圖片</span>`;
 
             const orderHtml = item.orderId ? `<div><span class="info-tag" style="background:#fcf3cf; color:#d4ac0d;">訂購</span>${escapeHtml(item.orderId)}</div>` : '';
