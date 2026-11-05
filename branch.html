@@ -3,109 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>共用庫存</title>
+    <title>跨店共用庫存</title>
     <style>
         :root { --primary-color: #2c3e50; --secondary-color: #3498db; --bg-color: #f4f6f9; --zhongxiao: #27ae60; --apon: #8e44ad; --main: #d35400; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; -webkit-tap-highlight-color: transparent;}
-        
-        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .login-box { background: white; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-        .login-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 6px; font-size: 1.1rem; box-sizing: border-box; text-align: center; }
-        .btn { width: 100%; padding: 12px; background-color: var(--secondary-color); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s;}
-        .btn:hover:not(:disabled) { filter: brightness(0.9); }
-        
-        #mainContainer { display: none; max-width: 1200px; margin: 0 auto; padding-bottom: 50px;}
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
-        .header h1 { margin: 0; color: var(--primary-color); }
-        
-        .top-actions { display: flex; gap: 10px; width: 100%; max-width: 500px;}
-        .search-input { flex-grow: 1; padding: 12px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; outline:none; }
-        .add-btn { background: #27ae60; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; white-space: nowrap;}
-        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+
+        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 15px; }
+        .login-box { background: white; padding: 36px 28px; border-radius: 12px; text-align: center; width: 100%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .login-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 6px; font-size: 1.1rem; text-align: center; outline: none; }
+        .login-input:focus { border-color: var(--secondary-color); }
+        .btn { width: 100%; padding: 12px; background-color: var(--secondary-color); color: white; border: none; border-radius: 6px; font-size: 1.05rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn:hover:not(:disabled) { filter: brightness(0.92); }
+        .btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
+
+        #mainContainer { display: none; max-width: 1200px; margin: 0 auto; padding-bottom: 50px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 15px; }
+        .header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .header h1 { margin: 0; color: var(--primary-color); font-size: 1.75rem; }
+
+        .nav-pill { background: #34495e; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
+        .nav-pill:hover { opacity: 0.9; }
+
+        .summary-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .sum-card { background: white; padding: 12px 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); border-left: 4px solid var(--secondary-color); }
+        .sum-card .sum-label { font-size: 0.85rem; color: #7f8c8d; font-weight: bold; }
+        .sum-card .sum-val { font-size: 1.4rem; font-weight: bold; margin-top: 4px; color: var(--primary-color); }
+
+        .top-actions { display: flex; gap: 10px; width: 100%; max-width: 560px; flex-wrap: wrap; }
+        .search-input { flex-grow: 1; min-width: 200px; padding: 11px 14px; border: 2px solid var(--secondary-color); border-radius: 8px; font-size: 1rem; outline: none; background: white; }
+        .add-btn { background: #27ae60; color: white; border: none; padding: 11px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; white-space: nowrap; }
+
+        .filter-tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+        .tab-btn { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 7px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+
         #listContainer { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        
-        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative;}
-        
-        /* 💡 徹底解決照片裁切問題：移除固定高度，讓照片依原比例自適應 */
-        .card-photo-wrapper { width: 100%; max-height: 250px; overflow: hidden; border-radius: 8px; background: #f8f9fa; border: 1px solid #eee; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; }
-        .card-photo { width: 100%; height: auto; max-height: 250px; object-fit: contain; cursor: zoom-in; transition: 0.2s; display: block; }
-        .card-photo:hover { opacity: 0.8; }
-        
-        .card-title { margin: 0 0 15px 0; color: var(--primary-color); font-size: 1.3rem; text-align: center;}
-        
-        .stock-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 1.1rem;}
-        .stock-row:last-of-type { border-bottom: none; font-weight: bold; font-size: 1.2rem; margin-top: 5px; color: #d35400;}
+
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; display: flex; flex-direction: column; }
+        .card-photo-wrapper { width: 100%; height: 220px; overflow: hidden; border-radius: 8px; background: #f8f9fa; border: 1px solid #eee; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; }
+        .card-photo { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; transition: 0.2s; display: block; }
+        .card-photo:hover { opacity: 0.85; }
+        .card-title { margin: 0 0 12px 0; color: var(--primary-color); font-size: 1.25rem; text-align: center; }
+
+        .stock-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 1.05rem; }
+        .stock-row:last-of-type { border-bottom: none; font-weight: bold; font-size: 1.15rem; margin-top: 5px; color: #2c3e50; }
         .stock-row .val { font-weight: bold; }
-        
+
         .label-main { color: var(--main); }
         .label-zx { color: var(--zhongxiao); }
         .label-ap { color: var(--apon); }
-        
-        .admin-actions { display: none; margin-top: 15px; gap: 10px; }
-        .admin-actions button { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+        .admin-actions { display: flex; margin-top: 15px; gap: 8px; }
+        .admin-actions button { flex: 1; padding: 9px 6px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.92rem; transition: 0.2s; }
+        .admin-actions button:hover { filter: brightness(0.92); }
+        .transfer-btn { background: #3498db; color: white; }
         .edit-btn { background: #f39c12; color: white; }
         .delete-btn { background: #e74c3c; color: white; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;}
-        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: white; padding: 28px; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
         .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
-        .form-group input[type="text"], .form-group input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;}
-        
-        .upload-box { width: 100%; height: 150px; border: 2px dashed #bdc3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f8f9fa; color: #7f8c8d; font-weight: bold; flex-direction: column; transition: 0.2s; }
-        .upload-box:hover { border-color: var(--secondary-color); background: #ebf5fb; color: var(--secondary-color); }
-        .upload-box span.icon { font-size: 2.5rem; margin-bottom: 5px; }
-        
-        /* 💡 預覽區也改為自適應高度 */
-        .preview-container { position: relative; width: 100%; display: none; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; text-align: center; }
-        .preview-container img { max-width: 100%; max-height: 250px; height: auto; object-fit: contain; border-radius: 8px; display: inline-block;}
-        .clear-photo-btn { position: absolute; top: 10px; right: 10px; background: rgba(231, 76, 60, 0.9); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1rem; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: 0.2s;}
-        .clear-photo-btn:hover { background: #c0392b; transform: scale(1.1); }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: bold; color: #555; }
+        .form-group input[type="text"], .form-group input[type="number"], .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
 
-        #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; flex-direction: column; cursor: zoom-out;}
-        #lightbox img { max-width: 95%; max-height: 85%; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); object-fit: contain;}
-        #lightbox-close { color: white; font-size: 1.2rem; margin-top: 15px; padding: 8px 20px; border: 2px solid white; border-radius: 20px; background: transparent; cursor: pointer; }
+        .upload-box { width: 100%; height: 140px; border: 2px dashed #bdc3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f8f9fa; color: #7f8c8d; font-weight: bold; flex-direction: column; transition: 0.2s; }
+        .upload-box:hover { border-color: var(--secondary-color); background: #ebf5fb; color: var(--secondary-color); }
+        .upload-box span.icon { font-size: 2.2rem; margin-bottom: 5px; }
+
+        .preview-container { position: relative; width: 100%; display: none; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; text-align: center; padding: 8px; }
+        .preview-container img { max-width: 100%; max-height: 220px; height: auto; object-fit: contain; border-radius: 8px; display: inline-block; }
+        .clear-photo-btn { position: absolute; top: 10px; right: 10px; background: rgba(231, 76, 60, 0.9); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1rem; font-weight: bold; cursor: pointer; }
+
+        .quick-qty-btns { display: flex; gap: 6px; margin-top: 8px; }
+        .quick-qty-btns button { flex: 1; padding: 6px; border: 1px solid #3498db; background: #ebf5fb; color: #2980b9; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+        #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; flex-direction: column; cursor: zoom-out; }
+        #lightbox img { max-width: 95%; max-height: 85%; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); object-fit: contain; }
+        #lightbox-close { color: white; font-size: 1.1rem; margin-top: 15px; padding: 8px 20px; border: 2px solid white; border-radius: 20px; background: transparent; cursor: pointer; }
+
+        #toastBox { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.95); color: white; padding: 12px 22px; border-radius: 30px; font-weight: bold; font-size: 0.95rem; z-index: 4000; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
 
 <div id="loginScreen">
     <div class="login-box">
-        <h2 style="color:var(--secondary-color); margin-top:0;">🤝 共用庫存</h2>
-        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-15px;">分店查詢請輸入 8888<br>管理員新增請輸入管理者密碼</p>
-        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼">
+        <h2 style="color:var(--secondary-color); margin-top:0;">🤝 跨店共用庫存</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem; margin-top:-10px;">分店查詢請輸入 8888<br>管理員調撥與維護請輸入管理密碼</p>
+        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter') checkPassword()">
         <button class="btn" id="loginBtn" onclick="checkPassword()">進入系統</button>
-        <p id="errorMsg" style="color:red; display:none; font-size:0.9rem; font-weight:bold;">密碼錯誤</p>
+        <p id="errorMsg" style="color:#e74c3c; display:none; font-size:0.9rem; font-weight:bold; margin-top:12px;">密碼錯誤</p>
+        <button type="button" onclick="navigateTo('portal.html')" style="margin-top:16px; background:none; border:none; color:#3498db; font-weight:bold; cursor:pointer; font-size:0.95rem;">🏠 返回系統總入口</button>
     </div>
 </div>
 
 <div id="mainContainer">
     <div class="header">
-        <h1>共用庫存</h1>
+        <div class="header-left">
+            <button type="button" class="nav-pill" onclick="navigateTo('portal.html')">🏠 總入口</button>
+            <h1>🤝 跨店共用庫存</h1>
+            <span id="roleBadge" style="font-size:0.85rem; padding:4px 10px; border-radius:12px; font-weight:bold;"></span>
+        </div>
         <div class="top-actions">
-            <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋品名...">
-            <button class="add-btn" id="showAddBtn" onclick="openModal()">➕ 新增物品</button>
+            <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋共用物品名稱...">
+            <button type="button" class="add-btn" id="showAddBtn" onclick="openModal()">➕ 新增物品</button>
+            <button type="button" class="nav-pill" style="background:#7f8c8d;" onclick="logout()">🚪 登出</button>
         </div>
     </div>
+
+    <div class="summary-bar">
+        <div class="sum-card" style="border-left-color:#2c3e50;">
+            <div class="sum-label">📦 共用品項數</div>
+            <div class="sum-val" id="sumSku">0</div>
+        </div>
+        <div class="sum-card" style="border-left-color:var(--main);">
+            <div class="sum-label">🏬 古亭/共用倉可調度</div>
+            <div class="sum-val" id="sumMain" style="color:var(--main);">0</div>
+        </div>
+        <div class="sum-card" style="border-left-color:var(--zhongxiao);">
+            <div class="sum-label">📍 忠孝店使用中</div>
+            <div class="sum-val" id="sumZx" style="color:var(--zhongxiao);">0</div>
+        </div>
+        <div class="sum-card" style="border-left-color:var(--apon);">
+            <div class="sum-label">📍 艾朋店使用中</div>
+            <div class="sum-val" id="sumAp" style="color:var(--apon);">0</div>
+        </div>
+    </div>
+
+    <div class="filter-tabs">
+        <button type="button" class="tab-btn active" data-filter="ALL" onclick="setFilter('ALL')">全部顯示</button>
+        <button type="button" class="tab-btn" data-filter="MAIN" onclick="setFilter('MAIN')">🏬 古亭有可調度庫存</button>
+        <button type="button" class="tab-btn" data-filter="ZX" onclick="setFilter('ZX')">📍 忠孝店已轉入</button>
+        <button type="button" class="tab-btn" data-filter="AP" onclick="setFilter('AP')">📍 艾朋店已轉入</button>
+    </div>
+
     <div id="listContainer"></div>
 </div>
 
+<!-- 新增/編輯 Modal -->
 <div id="itemModal" class="modal">
     <div class="modal-content">
         <h2 id="modalTitle" style="margin-top:0; color:var(--primary-color);">新增共用物品</h2>
         <input type="hidden" id="editId">
-        
+
         <div class="form-group">
             <label>📸 物品照片</label>
             <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;">
-            
             <div id="photoUploadBox" class="upload-box" onclick="document.getElementById('photoInput').click()">
                 <span class="icon">📷</span>
                 <span>點擊拍照或選擇相片</span>
             </div>
-            
             <div id="photoPreviewContainer" class="preview-container">
-                <img id="previewPhoto">
+                <img id="previewPhoto" alt="預覽圖片">
                 <button type="button" class="clear-photo-btn" onclick="clearPhoto()" title="移除照片">✖</button>
             </div>
         </div>
@@ -115,7 +165,7 @@
             <input type="text" id="nameInput" placeholder="例如：金色高腳杯" required>
         </div>
         <div class="form-group">
-            <label class="label-main">🏬 古亭/共用倉庫 (數量)</label>
+            <label class="label-main">🏬 古亭/共用倉庫 (可調度數量)</label>
             <input type="number" id="qtyMain" value="0" min="0">
         </div>
         <div class="form-group">
@@ -127,49 +177,154 @@
             <input type="number" id="qtyAp" value="0" min="0">
         </div>
         <div style="display:flex; gap:10px; margin-top:25px;">
-            <button class="btn" style="background:#95a5a6;" onclick="closeModal()">取消</button>
-            <button class="btn" id="saveBtn" onclick="saveItem()">💾 儲存</button>
+            <button type="button" class="btn" style="background:#95a5a6;" onclick="closeModal()">取消</button>
+            <button type="button" class="btn" id="saveBtn" onclick="saveItem()">💾 儲存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 快速調撥 Modal -->
+<div id="transferModal" class="modal">
+    <div class="modal-content">
+        <h2 style="margin-top:0; color:#2980b9;">🔄 跨店快速調撥</h2>
+        <p id="transferItemTitle" style="font-weight:bold; font-size:1.15rem; color:#2c3e50; margin-top:-8px;"></p>
+        <input type="hidden" id="transferId">
+
+        <div class="form-group">
+            <label>📤 轉出據點 (從哪裡拿)</label>
+            <select id="transferFrom" onchange="updateTransferPreview()">
+                <option value="quantityMain">🏬 古亭/共用倉庫</option>
+                <option value="quantityZx">📍 忠孝店</option>
+                <option value="quantityAp">📍 艾朋店</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>📥 轉入據點 (送到哪裡)</label>
+            <select id="transferTo" onchange="updateTransferPreview()">
+                <option value="quantityZx">📍 忠孝店</option>
+                <option value="quantityAp">📍 艾朋店</option>
+                <option value="quantityMain">🏬 古亭/共用倉庫 (歸還)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>🔢 調撥數量</label>
+            <input type="number" id="transferQty" value="1" min="1" oninput="updateTransferPreview()">
+            <div class="quick-qty-btns">
+                <button type="button" onclick="addTransferQty(1)">+1</button>
+                <button type="button" onclick="addTransferQty(5)">+5</button>
+                <button type="button" onclick="addTransferQty(10)">+10</button>
+                <button type="button" onclick="setTransferMax()">全部轉出</button>
+            </div>
+        </div>
+
+        <div id="transferPreviewBox" style="background:#f8f9fa; padding:12px; border-radius:8px; font-size:0.95rem; line-height:1.6; border:1px solid #e2e8f0;"></div>
+
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button type="button" class="btn" style="background:#95a5a6;" onclick="closeTransferModal()">取消</button>
+            <button type="button" class="btn" id="confirmTransferBtn" onclick="executeTransfer()">✅ 確認調撥</button>
+        </div>
+    </div>
+</div>
+
+<!-- 刪除確認 Modal -->
+<div id="deleteConfirmModal" class="modal">
+    <div class="modal-content" style="max-width:340px; text-align:center;">
+        <h3 style="margin-top:0; color:#e74c3c;">🗑️ 確定刪除物品？</h3>
+        <p id="deleteConfirmText" style="color:#555;"></p>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button type="button" class="btn" style="background:#95a5a6;" onclick="closeDeleteModal()">取消</button>
+            <button type="button" class="btn" style="background:#e74c3c;" onclick="confirmDeleteItem()">確定刪除</button>
         </div>
     </div>
 </div>
 
 <div id="lightbox" onclick="closeLightbox()">
     <img id="lightbox-img" src="" alt="放大照片">
-    <button id="lightbox-close">關閉檢視</button>
+    <button type="button" id="lightbox-close" onclick="closeLightbox()">關閉檢視</button>
 </div>
 
+<div id="toastBox"></div>
+
 <script>
-    const API_URL = 'https://inventory-api.108m09101f.workers.dev'; 
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev';
     let inventoryData = [];
     let isAdmin = false;
+    let activeToken = '';
+    let currentFilter = 'ALL';
     let currentPhotoBase64 = null;
-    let photoCleared = false; 
+    let photoCleared = false;
+    let pendingDeleteId = null;
+
+    function navigateTo(page) {
+        window.location.href = page;
+    }
+
+    function showToast(msg) {
+        const box = document.getElementById('toastBox');
+        box.innerText = msg;
+        box.style.display = 'block';
+        setTimeout(() => { box.style.display = 'none'; }, 2600);
+    }
+
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, s => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[s]));
+    }
+
+    function logout() {
+        try {
+            sessionStorage.removeItem('adminToken');
+            sessionStorage.removeItem('empToken');
+        } catch (e) {}
+        location.reload();
+    }
 
     async function checkPassword() {
-        const input = document.getElementById('passwordInput').value;
+        const input = document.getElementById('passwordInput').value.trim();
+        if (!input) return showToast("請輸入密碼");
         const btn = document.getElementById('loginBtn');
-        btn.disabled = true; btn.innerText = "驗證中...";
+        btn.disabled = true;
+        btn.innerText = "驗證中...";
         document.getElementById('errorMsg').style.display = 'none';
 
         try {
-            const resAdmin = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': input }, body: JSON.stringify({ action: 'login' }) });
+            const resAdmin = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': input },
+                body: JSON.stringify({ action: 'login' })
+            });
             if (resAdmin.ok) {
                 isAdmin = true;
-                sessionStorage.setItem('adminToken', input);
+                activeToken = input;
+                try { sessionStorage.setItem('adminToken', input); } catch (e) {}
                 await loadData(input, true);
                 return;
             }
-            
-            const resEmp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': input }, body: JSON.stringify({ action: 'login_emp' }) });
+
+            const resEmp = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Employee-Password': input },
+                body: JSON.stringify({ action: 'login_emp' })
+            });
             if (resEmp.ok) {
                 isAdmin = false;
+                activeToken = input;
+                try { sessionStorage.setItem('empToken', input); } catch (e) {}
                 await loadData(input, false);
                 return;
             }
-            
-            document.getElementById('errorMsg').style.display = 'block'; 
-            btn.disabled = false; btn.innerText = "進入系統";
-        } catch (e) { alert("連線失敗"); btn.disabled = false; btn.innerText = "進入系統"; }
+
+            document.getElementById('errorMsg').style.display = 'block';
+            btn.disabled = false;
+            btn.innerText = "進入系統";
+        } catch (e) {
+            showToast("連線失敗，請檢查網路");
+            btn.disabled = false;
+            btn.innerText = "進入系統";
+        }
     }
 
     async function loadData(token, isManager) {
@@ -183,51 +338,88 @@
                 headers: headers,
                 body: JSON.stringify({ action: 'getShared' })
             });
-            
+            if (!res.ok) throw new Error();
             inventoryData = await res.json();
-            
+
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainContainer').style.display = 'block';
-            
+
+            const roleBadge = document.getElementById('roleBadge');
             if (isAdmin) {
                 document.getElementById('showAddBtn').style.display = 'block';
+                roleBadge.innerText = '👑 管理員模式 (可調撥與編輯)';
+                roleBadge.style.background = '#fef5e7';
+                roleBadge.style.color = '#d68910';
+            } else {
+                document.getElementById('showAddBtn').style.display = 'none';
+                roleBadge.innerText = '👀 分店檢視模式';
+                roleBadge.style.background = '#ebf5fb';
+                roleBadge.style.color = '#2980b9';
             }
+            renderSummary();
             renderList();
-        } catch(e) { alert("資料載入失敗"); }
+        } catch (e) {
+            showToast("資料載入失敗");
+        }
+    }
+
+    function renderSummary() {
+        let sumMain = 0, sumZx = 0, sumAp = 0;
+        inventoryData.forEach(item => {
+            sumMain += (item.quantityMain || 0);
+            sumZx += (item.quantityZx || 0);
+            sumAp += (item.quantityAp || 0);
+        });
+        document.getElementById('sumSku').innerText = inventoryData.length;
+        document.getElementById('sumMain').innerText = sumMain;
+        document.getElementById('sumZx').innerText = sumZx;
+        document.getElementById('sumAp').innerText = sumAp;
+    }
+
+    function setFilter(filterType) {
+        currentFilter = filterType;
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-filter') === filterType);
+        });
+        renderList();
     }
 
     function renderList() {
-        const query = document.getElementById('searchInput').value.toLowerCase();
+        const query = document.getElementById('searchInput').value.trim().toLowerCase();
         const list = document.getElementById('listContainer');
         list.innerHTML = '';
 
         const displayItems = inventoryData.filter(item => {
-            if (!query) return true;
-            return (item.productName || '').toLowerCase().includes(query);
+            if (query && !(item.productName || '').toLowerCase().includes(query)) return false;
+            if (currentFilter === 'MAIN') return (item.quantityMain || 0) > 0;
+            if (currentFilter === 'ZX') return (item.quantityZx || 0) > 0;
+            if (currentFilter === 'AP') return (item.quantityAp || 0) > 0;
+            return true;
         });
 
         if (displayItems.length === 0) {
-            list.innerHTML = '<p style="text-align:center; grid-column: 1 / -1; color:#7f8c8d; padding:30px;">目前沒有任何物品。</p>';
+            list.innerHTML = '<p style="text-align:center; grid-column: 1 / -1; color:#7f8c8d; padding:30px;">目前沒有符合條件的共用物品。</p>';
             return;
         }
 
         displayItems.forEach(item => {
-            // 💡 加入了 card-photo-wrapper 包覆照片，讓照片能自適應完整顯示
-            const photoHtml = item.photo 
-                ? `<div class="card-photo-wrapper"><img src="${item.photo}" class="card-photo" onclick="openLightbox('${item.photo}')" title="點擊放大"></div>` 
-                : `<div class="card-photo-wrapper" style="height:180px;"><div style="display:flex;align-items:center;justify-content:center;color:#999;width:100%;height:100%;">無圖片</div></div>`;
-                
+            const safeId = escapeHtml(item.id);
+            const photoHtml = item.photo
+                ? `<div class="card-photo-wrapper"><img src="${escapeHtml(item.photo)}" class="card-photo" onclick="openLightboxById('${safeId}')" title="點擊放大"></div>`
+                : `<div class="card-photo-wrapper"><div style="display:flex;align-items:center;justify-content:center;color:#999;width:100%;height:100%;">無圖片</div></div>`;
+
             const main = item.quantityMain || 0;
             const zx = item.quantityZx || 0;
             const ap = item.quantityAp || 0;
             const total = main + zx + ap;
-            
+
             let adminHtml = '';
             if (isAdmin) {
                 adminHtml = `
-                    <div class="admin-actions" style="display:flex;">
-                        <button class="edit-btn" onclick="editItem('${item.id}')">✏️ 編輯</button>
-                        <button class="delete-btn" onclick="deleteItem('${item.id}')">🗑️ 刪除</button>
+                    <div class="admin-actions">
+                        <button type="button" class="transfer-btn" onclick="openTransferModal('${safeId}')">🔄 調撥</button>
+                        <button type="button" class="edit-btn" onclick="editItem('${safeId}')">✏️ 編輯</button>
+                        <button type="button" class="delete-btn" onclick="askDeleteItem('${safeId}')">🗑️ 刪除</button>
                     </div>
                 `;
             }
@@ -235,7 +427,7 @@
             list.innerHTML += `
                 <div class="card">
                     ${photoHtml}
-                    <h3 class="card-title">${item.productName || '未命名'}</h3>
+                    <h3 class="card-title">${escapeHtml(item.productName || '未命名')}</h3>
                     <div class="stock-row label-main">
                         <span>🏬 古亭/共用倉庫 (可調度)</span><span class="val">${main}</span>
                     </div>
@@ -256,11 +448,13 @@
 
     document.getElementById('searchInput').addEventListener('input', renderList);
 
-    function openLightbox(imgSrc) {
-        document.getElementById('lightbox-img').src = imgSrc;
+    function openLightboxById(id) {
+        const item = inventoryData.find(i => String(i.id) === String(id));
+        if (!item || !item.photo) return;
+        document.getElementById('lightbox-img').src = item.photo;
         document.getElementById('lightbox').style.display = 'flex';
     }
-    
+
     function closeLightbox() {
         document.getElementById('lightbox').style.display = 'none';
     }
@@ -272,20 +466,19 @@
         reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
-                // 💡 確保原比例完美保留
                 const canvas = document.createElement('canvas');
-                const MAX = 600; 
+                const MAX = 600;
                 let w = img.width; let h = img.height;
-                if (w > h && w > MAX) { h *= MAX / w; w = MAX; } 
+                if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
                 else if (h > MAX) { w *= MAX / h; h = MAX; }
-                
+
                 canvas.width = w; canvas.height = h;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
-                
-                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                photoCleared = false; 
-                
+
+                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+                photoCleared = false;
+
                 document.getElementById('photoUploadBox').style.display = 'none';
                 document.getElementById('photoPreviewContainer').style.display = 'block';
                 document.getElementById('previewPhoto').src = currentPhotoBase64;
@@ -294,12 +487,11 @@
         };
         reader.readAsDataURL(file);
     });
-    
+
     function clearPhoto() {
         document.getElementById('photoInput').value = '';
         currentPhotoBase64 = null;
-        photoCleared = true; 
-        
+        photoCleared = true;
         document.getElementById('photoPreviewContainer').style.display = 'none';
         document.getElementById('photoUploadBox').style.display = 'flex';
     }
@@ -310,29 +502,27 @@
         document.getElementById('qtyMain').value = 0;
         document.getElementById('qtyZx').value = 0;
         document.getElementById('qtyAp').value = 0;
-        
         clearPhoto();
-        photoCleared = false; 
-        
+        photoCleared = false;
         document.getElementById('modalTitle').innerText = '新增共用物品';
         document.getElementById('itemModal').style.display = 'flex';
     }
 
     function editItem(id) {
-        const item = inventoryData.find(i => i.id === id);
-        if(!item) return;
-        
+        const item = inventoryData.find(i => String(i.id) === String(id));
+        if (!item) return;
+
         document.getElementById('editId').value = item.id;
         document.getElementById('nameInput').value = item.productName || '';
         document.getElementById('qtyMain').value = item.quantityMain || 0;
         document.getElementById('qtyZx').value = item.quantityZx || 0;
         document.getElementById('qtyAp').value = item.quantityAp || 0;
-        
+
         document.getElementById('photoInput').value = '';
         currentPhotoBase64 = null;
-        photoCleared = false; 
-        
-        if(item.photo) {
+        photoCleared = false;
+
+        if (item.photo) {
             document.getElementById('previewPhoto').src = item.photo;
             document.getElementById('photoPreviewContainer').style.display = 'block';
             document.getElementById('photoUploadBox').style.display = 'none';
@@ -351,59 +541,221 @@
 
     async function saveItem() {
         const name = document.getElementById('nameInput').value.trim();
-        if(!name) return alert("請填寫品名！");
-        
+        if (!name) return showToast("請填寫品名！");
+
         const btn = document.getElementById('saveBtn');
-        btn.disabled = true; btn.innerText = '儲存中...';
-        
+        btn.disabled = true;
+        btn.innerText = '儲存中...';
+
         const isEdit = document.getElementById('editId').value !== '';
         const id = isEdit ? document.getElementById('editId').value : Date.now().toString();
-        
+
         const payload = {
             action: 'saveShared',
             id: id,
             productName: name,
-            quantityMain: parseInt(document.getElementById('qtyMain').value) || 0,
-            quantityZx: parseInt(document.getElementById('qtyZx').value) || 0,
-            quantityAp: parseInt(document.getElementById('qtyAp').value) || 0,
+            quantityMain: parseInt(document.getElementById('qtyMain').value, 10) || 0,
+            quantityZx: parseInt(document.getElementById('qtyZx').value, 10) || 0,
+            quantityAp: parseInt(document.getElementById('qtyAp').value, 10) || 0,
         };
-        
+
         if (currentPhotoBase64) {
-            payload.photo = currentPhotoBase64; 
+            payload.photo = currentPhotoBase64;
         } else if (photoCleared) {
-            payload.photo = ''; 
+            payload.photo = '';
         } else if (!isEdit) {
-            payload.photo = ''; 
+            payload.photo = '';
         }
 
         try {
-            const res = await fetch(API_URL, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }, 
-                body: JSON.stringify(payload) 
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': activeToken },
+                body: JSON.stringify(payload)
             });
             if (res.ok) {
                 closeModal();
-                await loadData(sessionStorage.getItem('adminToken'), true);
-            } else { throw new Error(); }
-        } catch(e) { alert("儲存失敗！"); }
-        
-        btn.disabled = false; btn.innerText = '💾 儲存';
+                showToast("✅ 儲存成功！");
+                await loadData(activeToken, true);
+            } else {
+                throw new Error();
+            }
+        } catch (e) {
+            showToast("儲存失敗！");
+        }
+
+        btn.disabled = false;
+        btn.innerText = '💾 儲存';
     }
 
-    async function deleteItem(id) {
-        if(!confirm("確定要刪除這個共用物品嗎？")) return;
+    // 快速調撥邏輯
+    function openTransferModal(id) {
+        const item = inventoryData.find(i => String(i.id) === String(id));
+        if (!item) return;
+        document.getElementById('transferId').value = item.id;
+        document.getElementById('transferItemTitle').innerText = `📦 ${item.productName || '未命名'}`;
+        document.getElementById('transferFrom').value = 'quantityMain';
+        document.getElementById('transferTo').value = 'quantityZx';
+        document.getElementById('transferQty').value = 1;
+        updateTransferPreview();
+        document.getElementById('transferModal').style.display = 'flex';
+    }
+
+    function closeTransferModal() {
+        document.getElementById('transferModal').style.display = 'none';
+    }
+
+    function addTransferQty(delta) {
+        const input = document.getElementById('transferQty');
+        input.value = Math.max(1, (parseInt(input.value, 10) || 0) + delta);
+        updateTransferPreview();
+    }
+
+    function setTransferMax() {
+        const id = document.getElementById('transferId').value;
+        const item = inventoryData.find(i => String(i.id) === String(id));
+        if (!item) return;
+        const fromField = document.getElementById('transferFrom').value;
+        document.getElementById('transferQty').value = Math.max(1, item[fromField] || 0);
+        updateTransferPreview();
+    }
+
+    function updateTransferPreview() {
+        const id = document.getElementById('transferId').value;
+        const item = inventoryData.find(i => String(i.id) === String(id));
+        if (!item) return;
+
+        const fromField = document.getElementById('transferFrom').value;
+        const toField = document.getElementById('transferTo').value;
+        const qty = parseInt(document.getElementById('transferQty').value, 10) || 0;
+        const box = document.getElementById('transferPreviewBox');
+        const btn = document.getElementById('confirmTransferBtn');
+
+        if (fromField === toField) {
+            box.innerHTML = `<span style="color:#e74c3c; font-weight:bold;">⚠️ 轉出與轉入據點不能相同！</span>`;
+            btn.disabled = true;
+            return;
+        }
+
+        const available = item[fromField] || 0;
+        if (qty <= 0 || qty > available) {
+            box.innerHTML = `<span style="color:#e74c3c; font-weight:bold;">⚠️ 轉出數量 (${qty}) 超過該據點現有庫存 (${available})！</span>`;
+            btn.disabled = true;
+            return;
+        }
+
+        const after = {
+            quantityMain: item.quantityMain || 0,
+            quantityZx: item.quantityZx || 0,
+            quantityAp: item.quantityAp || 0
+        };
+        after[fromField] -= qty;
+        after[toField] += qty;
+
+        btn.disabled = false;
+        box.innerHTML = `
+            <strong>📊 調撥後預計庫存：</strong><br>
+            🏬 古亭/共用倉：${item.quantityMain || 0} ➔ <strong>${after.quantityMain}</strong><br>
+            📍 忠孝店：${item.quantityZx || 0} ➔ <strong>${after.quantityZx}</strong><br>
+            📍 艾朋店：${item.quantityAp || 0} ➔ <strong>${after.quantityAp}</strong>
+        `;
+    }
+
+    async function executeTransfer() {
+        const id = document.getElementById('transferId').value;
+        const item = inventoryData.find(i => String(i.id) === String(id));
+        if (!item) return;
+
+        const fromField = document.getElementById('transferFrom').value;
+        const toField = document.getElementById('transferTo').value;
+        const qty = parseInt(document.getElementById('transferQty').value, 10) || 0;
+        if (fromField === toField || qty <= 0 || qty > (item[fromField] || 0)) return;
+
+        const btn = document.getElementById('confirmTransferBtn');
+        btn.disabled = true;
+        btn.innerText = '調撥中...';
+
+        const updated = {
+            action: 'saveShared',
+            id: item.id,
+            productName: item.productName,
+            quantityMain: item.quantityMain || 0,
+            quantityZx: item.quantityZx || 0,
+            quantityAp: item.quantityAp || 0
+        };
+        updated[fromField] -= qty;
+        updated[toField] += qty;
+
         try {
-            const res = await fetch(API_URL, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': sessionStorage.getItem('adminToken') }, 
-                body: JSON.stringify({ action: 'deleteShared', id: id }) 
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': activeToken },
+                body: JSON.stringify(updated)
             });
             if (res.ok) {
-                await loadData(sessionStorage.getItem('adminToken'), true);
-            } else { throw new Error(); }
-        } catch(e) { alert("刪除失敗！"); }
+                closeTransferModal();
+                showToast(`✅ 已成功調撥 ${qty} 件【${item.productName}】`);
+                await loadData(activeToken, true);
+            } else {
+                throw new Error();
+            }
+        } catch (e) {
+            showToast("調撥失敗，請重試");
+        }
+        btn.disabled = false;
+        btn.innerText = '✅ 確認調撥';
     }
+
+    function askDeleteItem(id) {
+        const item = inventoryData.find(i => String(i.id) === String(id));
+        if (!item) return;
+        pendingDeleteId = item.id;
+        document.getElementById('deleteConfirmText').innerText = `確定要永久刪除「${item.productName}」嗎？`;
+        document.getElementById('deleteConfirmModal').style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+        pendingDeleteId = null;
+        document.getElementById('deleteConfirmModal').style.display = 'none';
+    }
+
+    async function confirmDeleteItem() {
+        if (!pendingDeleteId) return;
+        const id = pendingDeleteId;
+        closeDeleteModal();
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': activeToken },
+                body: JSON.stringify({ action: 'deleteShared', id: id })
+            });
+            if (res.ok) {
+                showToast("🗑️ 已刪除共用物品");
+                await loadData(activeToken, true);
+            } else {
+                throw new Error();
+            }
+        } catch (e) {
+            showToast("刪除失敗！");
+        }
+    }
+
+    // 自動檢查是否已有登入憑證
+    (function autoInit() {
+        try {
+            const savedAdmin = sessionStorage.getItem('adminToken');
+            const savedEmp = sessionStorage.getItem('empToken');
+            if (savedAdmin) {
+                isAdmin = true;
+                activeToken = savedAdmin;
+                loadData(savedAdmin, true);
+            } else if (savedEmp) {
+                isAdmin = false;
+                activeToken = savedEmp;
+                loadData(savedEmp, false);
+            }
+        } catch (e) {}
+    })();
 </script>
 </body>
 </html>
