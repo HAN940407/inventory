@@ -473,6 +473,7 @@
                 <input type="text" id="adminSearchInput" class="search-box" placeholder="🔍 搜尋編號、品名、廠商、組別、位置...">
                 <button type="button" class="btn btn-danger" id="batchDeleteBtn" style="display:none;" onclick="batchDelete()">🗑️ 刪除</button>
                 <button type="button" class="btn btn-optimize" onclick="optimizeOldPhotos()" id="optimizeBtn" title="壓縮之前上傳的過大照片">🚀 最佳化舊照片加速</button>
+                <button type="button" class="btn" style="background-color:#8e44ad; color:white;" id="syncToSharedBtn" onclick="pushWarehouseToShared()" title="將勾選商品（未勾選則為全部有倉庫庫存的商品）加入跨店共用庫存">🤝 倉庫加入跨店共用</button>
                 <button type="button" class="btn" style="background-color:#2980b9; color:white;" onclick="openLabelPrintModal()">🏷️ 標籤列印</button>
                 <button type="button" class="btn" style="background-color:#34495e; color:white;" onclick="exportCSV()">📤 匯出 CSV</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
@@ -1778,8 +1779,51 @@
     function updateBatchDeleteBtn() {
         const c = document.querySelectorAll('.row-checkbox:checked').length;
         const btn = document.getElementById('batchDeleteBtn');
+        const syncBtn = document.getElementById('syncToSharedBtn');
         btn.style.display = c > 0 ? 'inline-block' : 'none';
-        if (c > 0) btn.innerText = `🗑️ 批量刪除 (${c})`;
+        if (c > 0) {
+            btn.innerText = `🗑️ 批量刪除 (${c})`;
+            if (syncBtn) syncBtn.innerText = `🤝 勾選加入共用 (${c})`;
+        } else {
+            if (syncBtn) syncBtn.innerText = `🤝 倉庫加入跨店共用`;
+        }
+    }
+
+    async function pushWarehouseToShared() {
+        const checkedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value, 10));
+        const isSelectedMode = checkedIds.length > 0;
+        const whCount = inventoryData.filter(i => (i.quantity || 0) > 0 || (i.borrowZhongxiao || 0) > 0 || (i.borrowApon || 0) > 0).length;
+
+        const ok = await askConfirmDialog(
+            '🤝 加入跨店共用庫存',
+            isSelectedMode
+                ? `確定要將勾選的 ${checkedIds.length} 項商品（含其倉庫庫存、忠孝外借、艾朋外借與照片）加入「跨店共用庫存 (branch.html)」嗎？`
+                : `確定要將主表中所有「倉庫庫存 > 0」（共 ${whCount} 項）的商品一鍵加入「跨店共用庫存 (branch.html)」嗎？
+
+（主表的「倉庫庫存」將自動對應為跨店共用表的「🏬 古亭/共用倉庫可調度數量」）`
+        );
+        if (!ok) return;
+
+        const btn = document.getElementById('syncToSharedBtn');
+        btn.disabled = true;
+        btn.innerText = '同步中...';
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    action: 'syncWarehouseToShared',
+                    ids: isSelectedMode ? checkedIds : null
+                })
+            });
+            const result = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error();
+            showToast(`✅ 成功將 ${result.syncedCount || 0} 項商品同步至跨店共用庫存！`);
+        } catch (e) {
+            showToast("同步失敗，請確認已部署最新 worker.js");
+        }
+        btn.disabled = false;
+        updateBatchDeleteBtn();
     }
 
     async function batchDelete() {
