@@ -363,7 +363,9 @@
             renderSummary();
             renderList();
         } catch (e) {
-            showToast("資料載入失敗");
+            showToast("資料載入失敗，請檢查網路");
+            const btn = document.getElementById('loginBtn');
+            if (btn) { btn.disabled = false; btn.innerText = "進入系統"; }
         }
     }
 
