@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>跨店轉貨拍照與驗收系統</title>
+    <style>
+        :root { --primary: #2c3e50; --secondary: #3498db; --bg: #f4f6f9; --green: #27ae60; --orange: #e67e22; --red: #e74c3c; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 15px; color: #333; }
+        
+        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .login-box { background: white; padding: 35px 25px; border-radius: 12px; text-align: center; width: 100%; max-width: 340px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .login-input { width: 100%; padding: 12px; margin-bottom: 18px; border: 2px solid #ddd; border-radius: 8px; font-size: 1.1rem; text-align: center; letter-spacing: 2px; }
+        .btn { width: 100%; padding: 12px; background: var(--secondary); color: white; border: none; border-radius: 8px; font-size: 1.05rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn:disabled { background: #95a5a6; cursor: not-allowed; }
+        
+        #mainContainer { display: none; max-width: 700px; margin: 0 auto; padding-bottom: 60px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .header h1 { margin: 0; font-size: 1.4rem; color: var(--primary); }
+        .add-btn { background: var(--orange); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; box-shadow: 0 3px 6px rgba(230,126,34,0.3); }
+
+        .tabs { display: flex; background: white; padding: 5px; border-radius: 10px; gap: 6px; margin-bottom: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; font-weight: bold; font-size: 0.95rem; color: #7f8c8d; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 15px; box-shadow: 0 3px 8px rgba(0,0,0,0.06); border-left: 5px solid var(--orange); }
+        .card.completed { border-left-color: var(--green); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 10px; }
+        .item-name { font-size: 1.15rem; font-weight: bold; color: var(--primary); margin: 0; }
+        .qty-badge { background: #ebf5fb; color: #2980b9; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.95rem; white-space: nowrap; }
+        .route-bar { background: #f8f9fa; padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .time-text { font-size: 0.8rem; color: #7f8c8d; margin-bottom: 10px; }
+        
+        .photo-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        .photo-box { background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; padding: 6px; text-align: center; }
+        .photo-box label { display: block; font-size: 0.8rem; font-weight: bold; color: #555; margin-bottom: 5px; }
+        .photo-box img { width: 100%; height: 140px; object-fit: contain; border-radius: 6px; cursor: zoom-in; background: white; }
+        .no-photo { height: 140px; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 0.85rem; }
+
+        .note-box { background: #fef9e7; border-left: 3px solid #f1c40f; padding: 8px 10px; border-radius: 4px; font-size: 0.9rem; color: #7d6608; margin-bottom: 12px; }
+        .card-actions { display: flex; gap: 8px; }
+        .btn-receive { flex: 1; background: var(--green); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; }
+        .btn-cancel { background: #fdedec; color: var(--red); border: 1px solid #f5b7b1; padding: 10px 14px; border-radius: 8px; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); z-index: 2000; align-items: center; justify-content: center; padding: 15px; }
+        .modal-content { background: white; padding: 25px 20px; border-radius: 12px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.95rem; color: #444; }
+        .form-group select, .form-group input[type="number"], .form-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+        
+        .upload-box { width: 100%; height: 130px; border: 2px dashed #bdc3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-direction: column; cursor: pointer; background: #f8f9fa; color: #7f8c8d; font-weight: bold; }
+        .preview-wrap { position: relative; display: none; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; text-align: center; padding: 5px; }
+        .preview-wrap img { max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 6px; }
+        .clear-btn { position: absolute; top: 8px; right: 8px; background: rgba(231,76,60,0.9); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; cursor: pointer; }
+
+        #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; align-items: center; justify-content: center; flex-direction: column; cursor: zoom-out; }
+        #lightbox img { max-width: 95%; max-height: 85%; object-fit: contain; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen">
+    <div class="login-box">
+        <h2 style="margin-top:0; color:var(--primary);">🚚 跨店轉貨驗收</h2>
+        <p style="color:#7f8c8d; font-size:0.85rem; margin-top:-10px;">出貨拍照・到貨驗收・自動連動庫存</p>
+        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入授權碼">
+        <button class="btn" id="loginBtn" onclick="checkPassword()">進入系統</button>
+        <p id="errorMsg" style="color:red; display:none; font-size:0.9rem; font-weight:bold;">密碼錯誤</p>
+    </div>
+</div>
+
+<div id="mainContainer">
+    <div class="header">
+        <h1>🚚 跨店轉貨紀錄</h1>
+        <button class="add-btn" onclick="openShipModal()">➕ 建立出貨單</button>
+    </div>
+
+    <div class="tabs">
+        <button id="tab-pending" class="tab-btn active" onclick="switchTab('PENDING')">🚚 待收貨 (<span id="pendingCount">0</span>)</button>
+        <button id="tab-completed" class="tab-btn" onclick="switchTab('COMPLETED')">✅ 已完成紀錄</button>
+    </div>
+
+    <div id="listContainer"></div>
+</div>
+
+<!-- 建立出貨單 Modal -->
+<div id="shipModal" class="modal">
+    <div class="modal-content">
+        <h2 style="margin-top:0; color:var(--orange);">📦 建立轉貨出貨單</h2>
+        <div class="form-group">
+            <label>選擇共用商品 (自動連動庫存)</label>
+            <select id="shipItemSelect" onchange="updateStockHint()"></select>
+            <div id="stockHint" style="font-size:0.82rem; color:#2980b9; margin-top:5px; font-weight:bold;"></div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div class="form-group">
+                <label>出貨店 (扣庫存)</label>
+                <select id="fromStoreSelect">
+                    <option value="main">🏬 古亭/共用倉庫</option>
+                    <option value="zx">📍 忠孝店</option>
+                    <option value="ap">📍 艾朋店</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>收貨店 (到貨加庫存)</label>
+                <select id="toStoreSelect">
+                    <option value="zx" selected>📍 忠孝店</option>
+                    <option value="ap">📍 艾朋店</option>
+                    <option value="main">🏬 古亭/共用倉庫</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>轉出數量</label>
+            <input type="number" id="shipQtyInput" value="1" min="1">
+        </div>
+        <div class="form-group">
+            <label>📸 出貨照片 (必填，保護雙方權益)</label>
+            <input type="file" id="shipPhotoInput" accept="image/*" capture="environment" style="display:none;">
+            <div id="shipUploadBox" class="upload-box" onclick="document.getElementById('shipPhotoInput').click()">
+                <span style="font-size:2rem;">📷</span>
+                <span>點擊拍攝出貨照片</span>
+            </div>
+            <div id="shipPreviewWrap" class="preview-wrap">
+                <img id="shipPreviewImg">
+                <button type="button" class="clear-btn" onclick="clearPhoto('ship')">✖</button>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn" style="background:#95a5a6;" onclick="closeModal('shipModal')">取消</button>
+            <button class="btn" id="submitShipBtn" style="background:var(--orange);" onclick="submitShip()">確認出貨</button>
+        </div>
+    </div>
+</div>
+
+<!-- 確認收貨 Modal -->
+<div id="receiveModal" class="modal">
+    <div class="modal-content">
+        <h2 style="margin-top:0; color:var(--green);">✅ 到貨拍照驗收</h2>
+        <input type="hidden" id="receiveTransferId">
+        <p id="receiveInfoText" style="background:#f8f9fa; padding:10px; border-radius:8px; font-weight:bold; font-size:0.95rem;"></p>
+        <div class="form-group">
+            <label>📸 收貨照片 (必填，確認物品完好)</label>
+            <input type="file" id="receivePhotoInput" accept="image/*" capture="environment" style="display:none;">
+            <div id="receiveUploadBox" class="upload-box" onclick="document.getElementById('receivePhotoInput').click()">
+                <span style="font-size:2rem;">📷</span>
+                <span>點擊拍攝收貨照片</span>
+            </div>
+            <div id="receivePreviewWrap" class="preview-wrap">
+                <img id="receivePreviewImg">
+                <button type="button" class="clear-btn" onclick="clearPhoto('receive')">✖</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>驗收備註 (選填，如破損或缺件說明)</label>
+            <input type="text" id="receiveNoteInput" placeholder="例如：數量無誤、外觀完好">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn" style="background:#95a5a6;" onclick="closeModal('receiveModal')">取消</button>
+            <button class="btn" id="submitReceiveBtn" style="background:var(--green);" onclick="submitReceive()">確認收貨入庫</button>
+        </div>
+    </div>
+</div>
+
+<div id="lightbox" onclick="this.style.display='none'">
+    <img id="lightbox-img" src="">
+</div>
+
+<script>
+    const API_URL = 'https://inventory-api.108m09101f.workers.dev';
+    const STORE_NAMES = { main: '🏬 古亭/共用倉庫', zx: '📍 忠孝店', ap: '📍 艾朋店' };
+    
+    let sharedItems = [];
+    let transferLogs = [];
+    let currentTab = 'PENDING';
+    let isAdmin = false;
+    let authToken = '';
+    let shipPhotoBase64 = '';
+    let receivePhotoBase64 = '';
+
+    function getHeaders() {
+        const h = { 'Content-Type': 'application/json' };
+        if (isAdmin) h['X-Admin-Password'] = authToken;
+        else h['X-Employee-Password'] = authToken;
+        return h;
+    }
+
+    function getNowStr() {
+        const d = new Date();
+        return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    async function checkPassword() {
+        const input = document.getElementById('passwordInput').value;
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true; btn.innerText = "驗證中...";
+        document.getElementById('errorMsg').style.display = 'none';
+
+        try {
+            const resAdmin = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': input }, body: JSON.stringify({ action: 'login' }) });
+            if (resAdmin.ok) {
+                isAdmin = true; authToken = input;
+                await loadAllData(); return;
+            }
+            const resEmp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Employee-Password': input }, body: JSON.stringify({ action: 'login_emp' }) });
+            if (resEmp.ok) {
+                isAdmin = false; authToken = input;
+                await loadAllData(); return;
+            }
+            document.getElementById('errorMsg').style.display = 'block';
+            btn.disabled = false; btn.innerText = "進入系統";
+        } catch (e) {
+            alert("連線失敗"); btn.disabled = false; btn.innerText = "進入系統";
+        }
+    }
+
+    async function loadAllData() {
+        try {
+            const [resItems, resLogs] = await Promise.all([
+                fetch(API_URL, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ action: 'getShared' }) }),
+                fetch(API_URL, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ action: 'getTransfers' }) })
+            ]);
+            sharedItems = await resItems.json();
+            transferLogs = await resLogs.json();
+
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'block';
+            renderList();
+        } catch (e) { alert("資料載入失敗"); }
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        document.getElementById('tab-pending').className = tab === 'PENDING' ? 'tab-btn active' : 'tab-btn';
+        document.getElementById('tab-completed').className = tab === 'COMPLETED' ? 'tab-btn active' : 'tab-btn';
+        renderList();
+    }
+
+    function renderList() {
+        const pendingLogs = transferLogs.filter(l => l.status === 'PENDING');
+        document.getElementById('pendingCount').innerText = pendingLogs.length;
+
+        const displayLogs = transferLogs.filter(l => l.status === currentTab);
+        const list = document.getElementById('listContainer');
+        list.innerHTML = '';
+
+        if (displayLogs.length === 0) {
+            list.innerHTML = `<p style="text-align:center; color:#7f8c8d; padding:40px;">目前沒有${currentTab === 'PENDING' ? '待收貨' : '已完成'}的轉貨紀錄。</p>`;
+            return;
+        }
+
+        displayLogs.forEach(log => {
+            const isDone = log.status === 'COMPLETED';
+            const shipImgHtml = log.shipPhoto ? `<img src="${log.shipPhoto}" onclick="openLightbox('${log.shipPhoto}')">` : `<div class="no-photo">無出貨照</div>`;
+            const recImgHtml = log.receivePhoto ? `<img src="${log.receivePhoto}" onclick="openLightbox('${log.receivePhoto}')">` : `<div class="no-photo">${isDone ? '無收貨照' : '等待收貨拍照...'}</div>`;
+            const noteHtml = log.receiveNote ? `<div class="note-box">📝 驗收備註：${log.receiveNote}</div>` : '';
+
+            let actionsHtml = '';
+            if (!isDone) {
+                actionsHtml = `<div class="card-actions">
+                    <button class="btn-receive" onclick="openReceiveModal('${log.id}')">📸 拍照並確認收貨</button>
+                    ${isAdmin ? `<button class="btn-cancel" onclick="cancelTransfer('${log.id}')">取消退回</button>` : ''}
+                </div>`;
+            }
+
+            list.innerHTML += `
+                <div class="card ${isDone ? 'completed' : ''}">
+                    <div class="card-header">
+                        <h3 class="item-name">${log.productName}</h3>
+                        <span class="qty-badge">數量：${log.quantity}</span>
+                    </div>
+                    <div class="route-bar">
+                        <span>${STORE_NAMES[log.fromStore] || log.fromStore}</span>
+                        <span>➔</span>
+                        <span>${STORE_NAMES[log.toStore] || log.toStore}</span>
+                    </div>
+                    <div class="time-text">
+                        📤 出貨時間：${log.shipTime || '-'}
+                        ${isDone ? `<br>📥 收貨時間：${log.receiveTime || '-'}` : ''}
+                    </div>
+                    <div class="photo-compare">
+                        <div class="photo-box"><label>📤 出貨照片</label>${shipImgHtml}</div>
+                        <div class="photo-box"><label>📥 收貨照片</label>${recImgHtml}</div>
+                    </div>
+                    ${noteHtml}
+                    ${actionsHtml}
+                </div>
+            `;
+        });
+    }
+
+    function openLightbox(src) {
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox').style.display = 'flex';
+    }
+
+    function compressPhoto(file, type) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX = 600;
+                let w = img.width, h = img.height;
+                if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
+                else if (h > MAX) { w *= MAX / h; h = MAX; }
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                const base64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                if (type === 'ship') {
+                    shipPhotoBase64 = base64;
+                    document.getElementById('shipUploadBox').style.display = 'none';
+                    document.getElementById('shipPreviewWrap').style.display = 'block';
+                    document.getElementById('shipPreviewImg').src = base64;
+                } else {
+                    receivePhotoBase64 = base64;
+                    document.getElementById('receiveUploadBox').style.display = 'none';
+                    document.getElementById('receivePreviewWrap').style.display = 'block';
+                    document.getElementById('receivePreviewImg').src = base64;
+                }
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    document.getElementById('shipPhotoInput').addEventListener('change', e => { if (e.target.files[0]) compressPhoto(e.target.files[0], 'ship'); });
+    document.getElementById('receivePhotoInput').addEventListener('change', e => { if (e.target.files[0]) compressPhoto(e.target.files[0], 'receive'); });
+
+    function clearPhoto(type) {
+        if (type === 'ship') {
+            shipPhotoBase64 = '';
+            document.getElementById('shipPhotoInput').value = '';
+            document.getElementById('shipPreviewWrap').style.display = 'none';
+            document.getElementById('shipUploadBox').style.display = 'flex';
+        } else {
+            receivePhotoBase64 = '';
+            document.getElementById('receivePhotoInput').value = '';
+            document.getElementById('receivePreviewWrap').style.display = 'none';
+            document.getElementById('receiveUploadBox').style.display = 'flex';
+        }
+    }
+
+    function openShipModal() {
+        if (sharedItems.length === 0) return alert("共用庫存目前沒有任何商品，請先至跨店共用庫存建立商品！");
+        const sel = document.getElementById('shipItemSelect');
+        sel.innerHTML = sharedItems.map(i => `<option value="${i.id}">${i.productName}</option>`).join('');
+        updateStockHint();
+        document.getElementById('shipQtyInput').value = 1;
+        clearPhoto('ship');
+        document.getElementById('shipModal').style.display = 'flex';
+    }
+
+    function updateStockHint() {
+        const id = document.getElementById('shipItemSelect').value;
+        const item = sharedItems.find(i => i.id === id);
+        if (item) {
+            document.getElementById('stockHint').innerText = `目前庫存 ➔ 古亭:${item.quantityMain||0} ｜ 忠孝:${item.quantityZx||0} ｜ 艾朋:${item.quantityAp||0}`;
+        }
+    }
+
+    function openReceiveModal(id) {
+        const log = transferLogs.find(l => l.id === id);
+        if (!log) return;
+        document.getElementById('receiveTransferId').value = id;
+        document.getElementById('receiveInfoText').innerText = `${log.productName}（數量：${log.quantity}）\n${STORE_NAMES[log.fromStore]} ➔ ${STORE_NAMES[log.toStore]}`;
+        document.getElementById('receiveNoteInput').value = '';
+        clearPhoto('receive');
+        document.getElementById('receiveModal').style.display = 'flex';
+    }
+
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    async function submitShip() {
+        const itemId = document.getElementById('shipItemSelect').value;
+        const fromStore = document.getElementById('fromStoreSelect').value;
+        const toStore = document.getElementById('toStoreSelect').value;
+        const qty = parseInt(document.getElementById('shipQtyInput').value) || 0;
+
+        if (fromStore === toStore) return alert("出貨店與收貨店不能相同！");
+        if (qty <= 0) return alert("請輸入正確的轉出數量！");
+        if (!shipPhotoBase64) return alert("請先拍攝並上傳「出貨照片」！");
+
+        const btn = document.getElementById('submitShipBtn');
+        btn.disabled = true; btn.innerText = "傳送中...";
+
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST', headers: getHeaders(),
+                body: JSON.stringify({
+                    action: 'createTransfer', id: Date.now().toString(),
+                    itemId, fromStore, toStore, quantity: qty,
+                    shipPhoto: shipPhotoBase64, shipTime: getNowStr()
+                })
+            });
+            if (res.ok) {
+                closeModal('shipModal');
+                await loadAllData();
+            } else { throw new Error(); }
+        } catch (e) { alert("出貨建單失敗！"); }
+        btn.disabled = false; btn.innerText = "確認出貨";
+    }
+
+    async function submitReceive() {
+        const id = document.getElementById('receiveTransferId').value;
+        const note = document.getElementById('receiveNoteInput').value.trim();
+        if (!receivePhotoBase64) return alert("請先拍攝並上傳「收貨照片」！");
+
+        const btn = document.getElementById('submitReceiveBtn');
+        btn.disabled = true; btn.innerText = "入庫中...";
+
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST', headers: getHeaders(),
+                body: JSON.stringify({
+                    action: 'receiveTransfer', id,
+                    receivePhoto: receivePhotoBase64, receiveTime: getNowStr(), receiveNote: note
+                })
+            });
+            if (res.ok) {
+                closeModal('receiveModal');
+                alert("✅ 驗收完成！系統已自動將數量加入收貨店庫存。");
+                await loadAllData();
+            } else { throw new Error(); }
+        } catch (e) { alert("驗收失敗！"); }
+        btn.disabled = false; btn.innerText = "確認收貨入庫";
+    }
+
+    async function cancelTransfer(id) {
+        if (!confirm("確定要取消這筆轉貨單嗎？\n數量將會自動退回原本的出貨店。")) return;
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST', headers: getHeaders(),
+                body: JSON.stringify({ action: 'cancelTransfer', id })
+            });
+            if (res.ok) await loadAllData();
+            else throw new Error();
+        } catch (e) { alert("取消失敗！"); }
+    }
+</script>
+</body>
+</html>
